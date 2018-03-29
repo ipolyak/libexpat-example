@@ -4,11 +4,7 @@
 #include <vector>
 
 #include "module_info.h"
-#include "log.h"
 
-
-namespace wrp
-{
 
 const TModuleId::TWorkflowId TModuleId::WorkflowIdUndefined = 0;
 const TModuleId::TInstanceId TModuleId::InstanceIdUndefined = 0;
@@ -18,14 +14,10 @@ TModuleId::TModuleId(const TWorkflowId& workflowId,
   workflowId(workflowId),
   instanceId(instanceId)
 {
-  // WRP_LOG(ELogPriority::DEBUG, "START");
-  // WRP_LOG(ELogPriority::DEBUG, "FINISH");
 }
 
 bool TModuleId::operator==(const TModuleId& other) const
 {
-  // WRP_LOG(ELogPriority::DEBUG, "START");
-  // WRP_LOG(ELogPriority::DEBUG, "FINISH");
   return (workflowId == other.workflowId) &&
     (instanceId == other.instanceId);
 }
@@ -42,8 +34,6 @@ TInputBatchInfo::TInputBatchInfo() :
   channels(),
   type(EInputBatchType::_undefined)
 {
-  WRP_LOG(ELogPriority::DEBUG, "START");
-  WRP_LOG(ELogPriority::DEBUG, "FINISH");
 }
 
 TOutputBatchInfo::TOutputMessageChannelInfo::TOutputMessageChannelInfo() :
@@ -51,8 +41,6 @@ TOutputBatchInfo::TOutputMessageChannelInfo::TOutputMessageChannelInfo() :
   name(),
   convertedName()
 {
-  WRP_LOG(ELogPriority::DEBUG, "START");
-  WRP_LOG(ELogPriority::DEBUG, "FINISH");
 }
 
 TOutputBatchInfo::TOutputMessageChannelInfo::TOutputMessageChannelInfo(
@@ -62,8 +50,6 @@ TOutputBatchInfo::TOutputMessageChannelInfo::TOutputMessageChannelInfo(
   name(name),
   convertedName(convertedName)
 {
-  WRP_LOG(ELogPriority::DEBUG, "START");
-  WRP_LOG(ELogPriority::DEBUG, "FINISH");
 }
 
 TOutputBatchInfo::TOutputBatchInfo() :
@@ -71,8 +57,8 @@ TOutputBatchInfo::TOutputBatchInfo() :
   channels(),
   type(EOutputBatchType::_undefined)
 {
-  WRP_LOG(ELogPriority::DEBUG, "START");
-  WRP_LOG(ELogPriority::DEBUG, "FINISH");
+  
+  
 }
 
 
@@ -89,8 +75,6 @@ TModuleInfo::TModuleInfo() :
   inputBatches(), outputBatches(),
   isStarting(false), isFinishing(false)
 {
-  WRP_LOG(ELogPriority::DEBUG, "START");
-  WRP_LOG(ELogPriority::DEBUG, "FINISH");
+  
+  
 }
-
-} // namespace wrp

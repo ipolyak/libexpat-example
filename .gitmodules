@@ -1,0 +1,3 @@
+[submodule "3rdparty/libexpat"]
+	path = 3rdparty/libexpat
+	url = https://github.com/libexpat/libexpat.git

@@ -57,8 +57,6 @@ TOutputBatchInfo::TOutputBatchInfo() :
   channels(),
   type(EOutputBatchType::_undefined)
 {
-  
-  
 }
 
 

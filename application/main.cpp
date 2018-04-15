@@ -8,6 +8,10 @@
 
 #include "expat.h"
 
+struct TXMLWorkflowTree;
+struct TWrapperParser;
+struct TXMLTagInfo;
+
 /* Класс #TWorkflowFileContent задаёт способ хранения информации о
  * считанном содержимом workflow файла.
  */
@@ -820,3 +824,7 @@ const std::string TXMLWorkflowTree::ReceiverNameTagName = "receiverName";
 const std::string TXMLWorkflowTree::IsStartingTagName = "isStarting";
 
 const std::string TXMLWorkflowTree::IsFinishingTagName = "isFinishing";
+
+TWrapperParser::~TWrapperParser()
+{
+}

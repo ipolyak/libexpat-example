@@ -84,7 +84,6 @@ struct TXMLTagInfo
       Workflow,
       Modules,
       Module,
-      ModuleName,
       ExecutionType,
       TransportType,
       ExecutablePath,
@@ -159,8 +158,6 @@ struct TXMLWorkflowTree
   static const std::string ModulesTagName;
 
   static const std::string ModuleTagName;
-
-  static const std::string ModuleNameTagName;
 
   static const std::string ExecutionTypeTagName;
 
@@ -464,10 +461,6 @@ TXMLWorkflowTree::TXMLWorkflowTree() :
       TTagHandlersInfo(TXMLTagInfo::ETagType::Module, TTagHandlers())));
 
   tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ModuleNameTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::ModuleName, TTagHandlers())));
-
-  tagName2TagHandlers.insert(
     std::pair<std::string, TTagHandlersInfo>(ExecutionTypeTagName,
       TTagHandlersInfo(TXMLTagInfo::ETagType::ExecutionType, TTagHandlers())));
 
@@ -625,8 +618,6 @@ TXMLWorkflowTree::TXMLWorkflowTree() :
     it->second.second.TagDataHandler = NULL;
   }
 
-  tagName2TagHandlers[ModuleNameTagName].second.TagDataHandler =
-    &DefaultTagDataHandler;
   tagName2TagHandlers[ExecutionTypeTagName].second.TagDataHandler =
     &DefaultTagDataHandler;
   tagName2TagHandlers[TransportTypeTagName].second.TagDataHandler =
@@ -691,7 +682,7 @@ void TXMLWorkflowTree::DefaultStartTagHandler(
   workflowXMLTree->currentTag = newTagInfo; // go down
   if (tagAttributes != NULL)
   {
-    for (int i = 0; tagAttributes[i]; ++i)
+    for (int i = 0; tagAttributes[i]; i+=2)
     {
       typedef std::pair<std::string, std::string> TTagAttribute;
       workflowXMLTree->currentTag->tagAttributes.push_back(
@@ -705,7 +696,12 @@ void TXMLWorkflowTree::DefaultTagDataHandler(TXMLWorkflowTree* workflowXMLTree,
   const XML_Char* tagData, int tagDataLength)
 {
   workflowXMLTree->currentTag->tagDataLength = tagDataLength;
-  workflowXMLTree->currentTag->tagData;
+  if (tagDataLength != 0)
+  {
+    workflowXMLTree->currentTag->tagData = new XML_Char[tagDataLength];
+    memcpy(static_cast<void*>(workflowXMLTree->currentTag->tagData),
+      static_cast<void*>(const_cast<XML_Char*>(tagData)), tagDataLength);
+  }
 }
 
 void TXMLWorkflowTree::DefaultEndTagHandler(TXMLWorkflowTree* workflowXMLTree)
@@ -749,8 +745,6 @@ const std::string TXMLWorkflowTree::WorkflowTagName = "workflow";
 const std::string TXMLWorkflowTree::ModulesTagName = "modules";
 
 const std::string TXMLWorkflowTree::ModuleTagName = "module";
-
-const std::string TXMLWorkflowTree::ModuleNameTagName = "module";
 
 const std::string TXMLWorkflowTree::ExecutionTypeTagName = "executionType";
 

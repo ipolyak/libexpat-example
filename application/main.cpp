@@ -57,13 +57,15 @@ public:
 
 struct TTagHandlers
 {
-  void(*StartTagHandler)(TXMLTagInfo*, const XML_Char**);
-  void(*TagDataHandler)(char*, int);
-  void(*EndTagHandler)();
+  void(*StartTagHandler)(TXMLWorkflowTree*, TXMLTagInfo*, const XML_Char**);
+  void(*TagDataHandler)(TXMLWorkflowTree*, const XML_Char*, int);
+  void(*EndTagHandler)(TXMLWorkflowTree*);
 
-  TTagHandlers(void(*StartTagHandler)(TXMLTagInfo*, const XML_Char**) = NULL,
-    void(*TagDataHandler)(char*, int) = NULL,
-    void(*EndTagHandler)() = NULL);
+  TTagHandlers(
+    void(*StartTagHandler)(TXMLWorkflowTree*, TXMLTagInfo*,
+      const XML_Char**) = NULL,
+    void(*TagDataHandler)(TXMLWorkflowTree*, const XML_Char*, int) = NULL,
+    void(*EndTagHandler)(TXMLWorkflowTree*) = NULL);
   ~TTagHandlers();
 };
 
@@ -144,7 +146,7 @@ struct TXMLWorkflowTree
     TTagHandlersInfo;
   typedef std::map<std::string, TTagHandlersInfo> TTagHandlersMap;
 
-  TTagHandlersMap TagName2TagHandlers;
+  TTagHandlersMap tagName2TagHandlers;
 
   static const std::string WorkflowTagName;
 
@@ -224,11 +226,13 @@ struct TXMLWorkflowTree
 
   ~TXMLWorkflowTree();
 
-  void DefaultStartTagHandler(TXMLTagInfo* newTagInfo, const XML_Char** tagAttributes);
+  static void DefaultStartTagHandler(TXMLWorkflowTree* workflowXMLTree,
+    TXMLTagInfo* newTagInfo, const XML_Char** tagAttributes);
 
-  void DefaultTagDataHandler(char* tagData, int tagDataLength);
+  static void DefaultTagDataHandler(TXMLWorkflowTree* workflowXMLTree,
+    XML_Char* tagData, int tagDataLength);
 
-  void DefaultEndTagHandler();
+  static void DefaultEndTagHandler(TXMLWorkflowTree* workflowXMLTree);
 };
 
 class TWrapperXMLParser : public TWrapperParser
@@ -397,36 +401,40 @@ TWrapperParser* TWrapperParserFactory::CreateInstance(const std::string& parserT
   }
 }
 
-TXMLWorkflowTree::TXMLWorkflowTree() : rootTag(NULL), currentTag(NULL)
+TXMLWorkflowTree::TXMLWorkflowTree() :
+  rootTag(NULL), currentTag(NULL), tagName2TagHandlers()
 {
+  tagName2TagHandlers[WorkflowTagName] = TXMLTagInfo::ETagType::Workflow;
 }
 
 TXMLWorkflowTree::~TXMLWorkflowTree()
 {
 }
 
-void TXMLWorkflowTree::DefaultStartTagHandler(TXMLTagInfo* newTagInfo,
+void TXMLWorkflowTree::DefaultStartTagHandler(
+  TXMLWorkflowTree* workflowXMLTree, TXMLTagInfo* newTagInfo,
   const XML_Char** tagAttributes)
 {
-  newTagInfo->parentTag = currentTag;
-  if (currentTag != NULL) // Else it is asssumed that is tag with 'workflow' name
+  newTagInfo->parentTag = workflowXMLTree->currentTag;
+  if (workflowXMLTree->currentTag != NULL) // Else it is asssumed that is tag with 'workflow' name
   {
-    currentTag->childTags.push_back(newTagInfo);
+    workflowXMLTree->currentTag->childTags.push_back(newTagInfo);
   }
-  currentTag = newTagInfo; // go down
+  workflowXMLTree->currentTag = newTagInfo; // go down
   if (tagAttributes != NULL)
   {
     for (int i = 0; tagAttributes[i]; ++i)
     {
       typedef std::pair<std::string, std::string> TTagAttribute;
-      currentTag->tagAttributes.push_back(
+      workflowXMLTree->currentTag->tagAttributes.push_back(
         TTagAttribute(std::string(tagAttributes[i]),
           std::string(tagAttributes[i + 1])));
     }
   }
 }
 
-void TXMLWorkflowTree::DefaultTagDataHandler(char* tagData, int tagDataLength)
+void TXMLWorkflowTree::DefaultTagDataHandler(TXMLWorkflowTree* workflowXMLTree,
+  XML_Char* tagData, int tagDataLength)
 {
   if ((tagData == NULL) || (tagDataLength <= 0))
   {
@@ -437,24 +445,27 @@ void TXMLWorkflowTree::DefaultTagDataHandler(char* tagData, int tagDataLength)
     throw std::runtime_error(info.str());
   }
 
-  currentTag->tagDataLength = tagDataLength;
-  currentTag->tagData;
+  workflowXMLTree->currentTag->tagDataLength = tagDataLength;
+  workflowXMLTree->currentTag->tagData;
 }
 
-void TXMLWorkflowTree::DefaultEndTagHandler()
+void TXMLWorkflowTree::DefaultEndTagHandler(TXMLWorkflowTree* workflowXMLTree)
 {
-  if (currentTag == NULL)
+  if (workflowXMLTree->currentTag == NULL)
   {
     std::stringstream info;
     info << "NOTICE. Parsing workflow file is finished.";
     return;
   }
 
-  currentTag = currentTag->parentTag; // go up
+  workflowXMLTree->currentTag =
+    workflowXMLTree->currentTag->parentTag; // go up
 }
 
-TTagHandlers::TTagHandlers(void(*StartTagHandler)(TXMLTagInfo*, const XML_Char**),
-  void(*TagDataHandler)(char*, int), void(*EndTagHandler)()) :
+TTagHandlers::TTagHandlers(
+  void(*StartTagHandler)(TXMLWorkflowTree*, TXMLTagInfo*, const XML_Char**),
+  void(*TagDataHandler)(TXMLWorkflowTree*, const XML_Char*, int),
+  void(*EndTagHandler)(TXMLWorkflowTree*)) :
   StartTagHandler(StartTagHandler), TagDataHandler(TagDataHandler),
   EndTagHandler(EndTagHandler)
 {

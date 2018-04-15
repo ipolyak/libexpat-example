@@ -79,6 +79,7 @@ struct TXMLTagInfo
 
       Workflow,
       Modules,
+      Module,
       ModuleName,
       ExecutionType,
       TransportType,
@@ -153,6 +154,8 @@ struct TXMLWorkflowTree
   static const std::string ModulesTagName;
 
   static const std::string ModuleTagName;
+
+  static const std::string ModuleNameTagName;
 
   static const std::string ExecutionTypeTagName;
 
@@ -230,7 +233,7 @@ struct TXMLWorkflowTree
     TXMLTagInfo* newTagInfo, const XML_Char** tagAttributes);
 
   static void DefaultTagDataHandler(TXMLWorkflowTree* workflowXMLTree,
-    XML_Char* tagData, int tagDataLength);
+    const XML_Char* tagData, int tagDataLength);
 
   static void DefaultEndTagHandler(TXMLWorkflowTree* workflowXMLTree);
 };
@@ -404,7 +407,224 @@ TWrapperParser* TWrapperParserFactory::CreateInstance(const std::string& parserT
 TXMLWorkflowTree::TXMLWorkflowTree() :
   rootTag(NULL), currentTag(NULL), tagName2TagHandlers()
 {
-  tagName2TagHandlers[WorkflowTagName] = TXMLTagInfo::ETagType::Workflow;
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(WorkflowTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::Workflow, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ModulesTagName,
+    TTagHandlersInfo(TXMLTagInfo::ETagType::Modules, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ModuleTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::Module, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ModuleNameTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::ModuleName, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ExecutionTypeTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::ExecutionType, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(TransportTypeTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::TransportType, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ExecutablePathTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::ExecutablePath,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(StartCommandLineArgsTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::StartCommandLineArgs,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ArgumentTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::Argument, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(StopCommandLineTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::StopCommandLine,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ModuleParametersTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::ModuleParameters,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ParameterTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::Parameter, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(NameTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::Name, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ValueTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::Value, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(EnvironmentVariablesTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::EnvironmentVariables,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(VariableTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::Variable, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(InputFileNameTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::InputFileName, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(OutputFileNameTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputFileName,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(HasStateTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::HasState, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(StateFileNameTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::StateFileName, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(IsTransferableTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::IsTransferable,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(InputBatchesTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::InputBatches, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(InputBatchTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::InputBatch, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(InputBatchTypeTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::InputBatchType, 
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(DistributorNameTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::DistributorName,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(SourceChannelsTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::SourceChannels,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(InputBatchChannelsTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::InputBatchChannels,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ChannelNameTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::ChannelName, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(OutputBatchesTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputBatches, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(OutputBatchTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputBatch, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(OutputBatchTypeTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputBatchType,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(CollectorNameTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::CollectorName, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(OutputChannelsTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputChannels,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(OutputChannelTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputChannel, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ChannelConvertedNameTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::ChannelConvertedName,
+        TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(ReceiverNameTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::ReceiverName, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(IsStartingTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::IsStarting, TTagHandlers())));
+
+  tagName2TagHandlers.insert(
+    std::pair<std::string, TTagHandlersInfo>(IsFinishingTagName,
+      TTagHandlersInfo(TXMLTagInfo::ETagType::IsFinishing, TTagHandlers())));
+
+  for (TTagHandlersMap::iterator it = tagName2TagHandlers.begin();
+    it != tagName2TagHandlers.end(); ++it)
+  {
+    it->second.second.StartTagHandler = &DefaultStartTagHandler;
+    it->second.second.EndTagHandler = &DefaultEndTagHandler;
+    it->second.second.TagDataHandler = NULL;
+  }
+
+  tagName2TagHandlers[ModuleNameTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[ExecutionTypeTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[TransportTypeTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[ExecutablePathTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[ArgumentTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[StopCommandLineTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[NameTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[ValueTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[InputFileNameTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[OutputFileNameTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[HasStateTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[StateFileNameTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[IsTransferableTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[InputBatchTypeTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[DistributorNameTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[ChannelNameTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[OutputBatchTypeTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[CollectorNameTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[ChannelConvertedNameTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[ReceiverNameTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[IsStartingTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
+  tagName2TagHandlers[IsFinishingTagName].second.TagDataHandler =
+    &DefaultTagDataHandler;
 }
 
 TXMLWorkflowTree::~TXMLWorkflowTree()
@@ -434,7 +654,7 @@ void TXMLWorkflowTree::DefaultStartTagHandler(
 }
 
 void TXMLWorkflowTree::DefaultTagDataHandler(TXMLWorkflowTree* workflowXMLTree,
-  XML_Char* tagData, int tagDataLength)
+  const XML_Char* tagData, int tagDataLength)
 {
   if ((tagData == NULL) || (tagDataLength <= 0))
   {
@@ -476,7 +696,8 @@ TTagHandlers::~TTagHandlers()
 }
 
 TXMLTagInfo::TXMLTagInfo(ETagType::Type tagType, const TTagHandlers& handlers) :
-  tagType(tagType), handlers(handlers)
+  tagType(tagType), handlers(handlers), parentTag(NULL), childTags(),
+  tagAttributes(), tagDataLength(0), tagData(NULL)
 {
 }
 
@@ -489,6 +710,8 @@ const std::string TXMLWorkflowTree::WorkflowTagName = "workflow";
 const std::string TXMLWorkflowTree::ModulesTagName = "modules";
 
 const std::string TXMLWorkflowTree::ModuleTagName = "module";
+
+const std::string TXMLWorkflowTree::ModuleNameTagName = "module";
 
 const std::string TXMLWorkflowTree::ExecutionTypeTagName = "executionType";
 

@@ -145,6 +145,7 @@ struct TXMLWorkflowTree
 
   typedef std::pair<TXMLTagInfo::ETagType::Type, TTagHandlers>
     TTagHandlersInfo;
+
   typedef std::map<std::string, TTagHandlersInfo> TTagHandlersMap;
 
   TTagHandlersMap tagName2TagHandlers;
@@ -376,18 +377,57 @@ void TWrapperXMLParser::StartElementHandler(void* workflowXMLTree,
   const XML_Char* tagName, const XML_Char** tagAttributes)
 {
   TXMLWorkflowTree* XMLTree = static_cast<TXMLWorkflowTree*>(workflowXMLTree);
+  if (XMLTree == NULL)
+  {
+    std::stringstream info;
+    info << "Expected not NULL workflow XML tree.";
+    throw std::runtime_error(info.str());
+  }
+
+  std::string tagNameStr(tagName);
+  TXMLWorkflowTree::TTagHandlersInfo& tagHandlersInfo =
+    XMLTree->tagName2TagHandlers[tagNameStr];
+  TXMLTagInfo* XMLTagInfo = new TXMLTagInfo(tagHandlersInfo.first,
+    tagHandlersInfo.second);
+  if (XMLTagInfo->handlers.StartTagHandler != NULL)
+  {
+    XMLTagInfo->handlers.StartTagHandler(XMLTree, XMLTagInfo, tagAttributes);
+  }
 }
 
 void TWrapperXMLParser::CharacterDataHandler(void* workflowXMLTree,
   const XML_Char* tagData, int tagDataLength)
 {
   TXMLWorkflowTree* XMLTree = static_cast<TXMLWorkflowTree*>(workflowXMLTree);
+  if (XMLTree == NULL)
+  {
+    std::stringstream info;
+    info << "Expected not NULL workflow XML tree.";
+    throw std::runtime_error(info.str());
+  }
+
+  if (XMLTree->currentTag->handlers.TagDataHandler != NULL)
+  {
+    XMLTree->currentTag->handlers.TagDataHandler(XMLTree, tagData,
+      tagDataLength);
+  }
 }
 
 void TWrapperXMLParser::EndElementHandler(void* workflowXMLTree,
   const XML_Char* tagName)
 {
   TXMLWorkflowTree* XMLTree = static_cast<TXMLWorkflowTree*>(workflowXMLTree);
+  if (XMLTree == NULL)
+  {
+    std::stringstream info;
+    info << "Expected not NULL workflow XML tree.";
+    throw std::runtime_error(info.str());
+  }
+
+  if (XMLTree->currentTag->handlers.EndTagHandler != NULL)
+  {
+    XMLTree->currentTag->handlers.EndTagHandler(XMLTree);
+  }
 }
 
 TWrapperParser* TWrapperParserFactory::CreateInstance(const std::string& parserType)
@@ -576,8 +616,8 @@ TXMLWorkflowTree::TXMLWorkflowTree() :
   for (TTagHandlersMap::iterator it = tagName2TagHandlers.begin();
     it != tagName2TagHandlers.end(); ++it)
   {
-    it->second.second.StartTagHandler = &DefaultStartTagHandler;
-    it->second.second.EndTagHandler = &DefaultEndTagHandler;
+    it->second.second.StartTagHandler = DefaultStartTagHandler;
+    it->second.second.EndTagHandler = DefaultEndTagHandler;
     it->second.second.TagDataHandler = NULL;
   }
 
@@ -636,9 +676,13 @@ void TXMLWorkflowTree::DefaultStartTagHandler(
   const XML_Char** tagAttributes)
 {
   newTagInfo->parentTag = workflowXMLTree->currentTag;
-  if (workflowXMLTree->currentTag != NULL) // Else it is asssumed that is tag with 'workflow' name
+  if (workflowXMLTree->currentTag != NULL)
   {
     workflowXMLTree->currentTag->childTags.push_back(newTagInfo);
+  }
+  else // Else it is asssumed that is root tag with 'workflow' name
+  {
+    workflowXMLTree->rootTag = newTagInfo; 
   }
   workflowXMLTree->currentTag = newTagInfo; // go down
   if (tagAttributes != NULL)
@@ -656,15 +700,6 @@ void TXMLWorkflowTree::DefaultStartTagHandler(
 void TXMLWorkflowTree::DefaultTagDataHandler(TXMLWorkflowTree* workflowXMLTree,
   const XML_Char* tagData, int tagDataLength)
 {
-  if ((tagData == NULL) || (tagDataLength <= 0))
-  {
-    std::stringstream info;
-    info << "Incorrect input data. Expected not NULL tag data and positive tag " <<
-      "data length. Data: " << (tagData == NULL ? "NULL" : "not NULL") << " , " <<
-      "length: " << tagDataLength;
-    throw std::runtime_error(info.str());
-  }
-
   workflowXMLTree->currentTag->tagDataLength = tagDataLength;
   workflowXMLTree->currentTag->tagData;
 }

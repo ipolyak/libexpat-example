@@ -972,6 +972,7 @@ void TXMLWorkflowTree::DefaultStartTagHandler(
   }
 
   /* Checking relationships beetwen new and current tags */
+  if(workflowXMLTree->currentTag != NULL)
   {
     std::list<TXMLTagInfo::ETagType::Type>::iterator it =
       std::find(workflowXMLTree->currentTag->allowedChildTagIds.begin(),
@@ -986,6 +987,7 @@ void TXMLWorkflowTree::DefaultStartTagHandler(
       throw std::runtime_error(info.str());
     }
   }
+  if (workflowXMLTree->currentTag != NULL)
   {
     std::list<TXMLTagInfo::ETagType::Type>::iterator it =
       std::find(newTagInfo->allowedParentTagIds.begin(),

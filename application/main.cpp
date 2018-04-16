@@ -1010,8 +1010,6 @@ TXMLWorkflowTree::~TXMLWorkflowTree()
     /* Go up to parent tag */
     currentTag = parentTag;
   }
-
-  int i = 4 + 4;
 }
 
 void TXMLWorkflowTree::DefaultStartTagHandler(

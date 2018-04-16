@@ -2,6 +2,7 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 #include <map>
 #include <list>
 #include "module_info.h"
@@ -125,7 +126,11 @@ struct TXMLTagInfo
 
   TXMLTagInfo* parentTag;
 
+  std::list<ETagType::Type> allowedParentTagIds;
+
   std::list<TXMLTagInfo*> childTags;
+
+  std::list<ETagType::Type> allowedChildTagIds;
 
   std::list<std::pair<std::string, std::string>> tagAttributes;
 
@@ -135,7 +140,9 @@ struct TXMLTagInfo
 
   XML_Char* tagData;
 
-  TXMLTagInfo(ETagType::Type tagType, const TTagHandlers& handlers);
+  TXMLTagInfo(ETagType::Type tagType, const TTagHandlers& handlers,
+    const std::list<TXMLTagInfo::ETagType::Type>& allowedParentTagIds,
+    const std::list<TXMLTagInfo::ETagType::Type>& allowedChildTagIds);
 
   ~TXMLTagInfo();
 };
@@ -149,8 +156,20 @@ struct TXMLWorkflowTree
   typedef std::pair<TXMLTagInfo::ETagType::Type, TTagHandlers>
     TTagHandlersInfo;
 
-  typedef std::map<std::string, TTagHandlersInfo> TTagHandlersMap;
+  struct TPrioriTagInfo
+  {
+    TTagHandlersInfo handlers;
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentTagIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildTagIds;
 
+    TPrioriTagInfo();
+    TPrioriTagInfo(const TTagHandlersInfo& handlers,
+      const std::list<TXMLTagInfo::ETagType::Type>& allowedParentTagIds,
+      std::list<TXMLTagInfo::ETagType::Type>& allowedChildTagIds);
+    ~TPrioriTagInfo();
+  };
+  
+  typedef std::map<std::string, TPrioriTagInfo> TTagHandlersMap;
   TTagHandlersMap tagName2TagHandlers;
 
   static const std::string WorkflowTagName;
@@ -261,6 +280,9 @@ private:
   void ReadWorkflowFile(const std::string& pathToWorkflowFile,
     TWorkflowFileContent& workflowFileContent);
 
+  void FillModuleInfos(const TXMLWorkflowTree* XMLTree,
+    std::vector<TModuleInfo>& modules);
+
   static void XMLCALL StartElementHandler(void* workflowXMLTree,
     const XML_Char* tagName, const XML_Char** tagAttributes);
 
@@ -322,6 +344,8 @@ std::vector<TModuleInfo>
   }
   delete[] workflowFileContent.buffer;
 
+  std::vector<TModuleInfo> modules;
+  FillModuleInfos(workflowXMLTree, modules);
 
   //int modulesCount = EjectModulesCount();
   //std::vector<TModuleInfo> modules(modulesCount);
@@ -334,7 +358,7 @@ std::vector<TModuleInfo>
   //}
 
   delete workflowXMLTree;
-  return std::vector<TModuleInfo>();
+  return modules;
 }
 
 void TWrapperXMLParser::ReadWorkflowFile(const std::string& pathToWorkflowFile,
@@ -374,6 +398,11 @@ void TWrapperXMLParser::ReadWorkflowFile(const std::string& pathToWorkflowFile,
   workflowFileContent.buffer = buffer;
 }
 
+void TWrapperXMLParser::FillModuleInfos(const TXMLWorkflowTree* XMLTree,
+  std::vector<TModuleInfo>& modules)
+{
+}
+
 void TWrapperXMLParser::StartElementHandler(void* workflowXMLTree,
   const XML_Char* tagName, const XML_Char** tagAttributes)
 {
@@ -386,10 +415,18 @@ void TWrapperXMLParser::StartElementHandler(void* workflowXMLTree,
   }
 
   std::string tagNameStr(tagName);
-  TXMLWorkflowTree::TTagHandlersInfo& tagHandlersInfo =
-    XMLTree->tagName2TagHandlers[tagNameStr];
-  TXMLTagInfo* XMLTagInfo = new TXMLTagInfo(tagHandlersInfo.first,
-    tagHandlersInfo.second);
+  TXMLWorkflowTree::TTagHandlersMap::iterator prioriTagInfoIt =
+    XMLTree->tagName2TagHandlers.find(tagNameStr);
+  if (prioriTagInfoIt == XMLTree->tagName2TagHandlers.end())
+  {
+    std::stringstream info;
+    info << "Unexpected tag with '" << tagNameStr << "' name.";
+    throw std::runtime_error(info.str());
+  }
+  TXMLTagInfo* XMLTagInfo = new TXMLTagInfo(prioriTagInfoIt->second.handlers.first,
+    prioriTagInfoIt->second.handlers.second,
+    prioriTagInfoIt->second.allowedParentTagIds,
+    prioriTagInfoIt->second.allowedChildTagIds);
   if (XMLTagInfo->handlers.StartTagHandler != NULL)
   {
     XMLTagInfo->handlers.StartTagHandler(XMLTree, XMLTagInfo, tagAttributes);
@@ -448,217 +485,474 @@ TWrapperParser* TWrapperParserFactory::CreateInstance(const std::string& parserT
 TXMLWorkflowTree::TXMLWorkflowTree() :
   rootTag(NULL), currentTag(NULL), tagName2TagHandlers()
 {
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(WorkflowTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::Workflow, TTagHandlers())));
+  typedef TXMLTagInfo::ETagType XMLTagType;
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ModulesTagName,
-    TTagHandlersInfo(TXMLTagInfo::ETagType::Modules, TTagHandlers())));
+  /* Filling prior info about XML tags */
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedChildIds.push_back(XMLTagType::Modules);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::Workflow,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(WorkflowTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ModuleTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::Module, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Workflow);
+    allowedChildIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::Modules,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ModulesTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ExecutionTypeTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::ExecutionType, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Modules);
+    allowedChildIds.push_back(XMLTagType::Name);
+    allowedChildIds.push_back(XMLTagType::ExecutionType);
+    allowedChildIds.push_back(XMLTagType::TransportType);
+    allowedChildIds.push_back(XMLTagType::ExecutablePath);
+    allowedChildIds.push_back(XMLTagType::StartCommandLineArgs);
+    allowedChildIds.push_back(XMLTagType::StopCommandLine);
+    allowedChildIds.push_back(XMLTagType::ModuleParameters);
+    allowedChildIds.push_back(XMLTagType::EnvironmentVariables);
+    allowedChildIds.push_back(XMLTagType::InputFileName);
+    allowedChildIds.push_back(XMLTagType::OutputFileName);
+    allowedChildIds.push_back(XMLTagType::HasState);
+    allowedChildIds.push_back(XMLTagType::StateFileName);
+    allowedChildIds.push_back(XMLTagType::IsTransferable);
+    allowedChildIds.push_back(XMLTagType::InputBatches);
+    allowedChildIds.push_back(XMLTagType::OutputBatches);
+    allowedChildIds.push_back(XMLTagType::IsStarting);
+    allowedChildIds.push_back(XMLTagType::IsFinishing);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::Module,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ModuleTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(TransportTypeTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::TransportType, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Workflow);
+    allowedChildIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::Modules,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ModulesTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ExecutablePathTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::ExecutablePath,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    allowedParentIds.push_back(XMLTagType::Parameter);
+    allowedParentIds.push_back(XMLTagType::Variable);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::Name,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(NameTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(StartCommandLineArgsTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::StartCommandLineArgs,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::ExecutionType,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ExecutionTypeTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ArgumentTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::Argument, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::TransportType,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(TransportTypeTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(StopCommandLineTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::StopCommandLine,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::ExecutablePath,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ExecutablePathTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ModuleParametersTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::ModuleParameters,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    allowedChildIds.push_back(XMLTagType::Argument);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::StartCommandLineArgs,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(StartCommandLineArgsTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ParameterTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::Parameter, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::StopCommandLine,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(StopCommandLineTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(NameTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::Name, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    allowedChildIds.push_back(XMLTagType::Parameter);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::ModuleParameters,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ModuleParametersTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ValueTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::Value, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::ModuleParameters);
+    allowedChildIds.push_back(XMLTagType::Name);
+    allowedChildIds.push_back(XMLTagType::Value);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::Parameter,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ParameterTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(EnvironmentVariablesTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::EnvironmentVariables,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Parameter);
+    allowedParentIds.push_back(XMLTagType::Variable);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::Value,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ValueTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(VariableTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::Variable, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    allowedChildIds.push_back(XMLTagType::Variable);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::EnvironmentVariables,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(EnvironmentVariablesTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(InputFileNameTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::InputFileName, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::EnvironmentVariables);
+    allowedChildIds.push_back(XMLTagType::Name);
+    allowedChildIds.push_back(XMLTagType::Value);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::Variable,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(VariableTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(OutputFileNameTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputFileName,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::InputFileName,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(InputFileNameTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(HasStateTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::HasState, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::OutputFileName,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(OutputFileNameTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(StateFileNameTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::StateFileName, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::HasState,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(HasStateTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(IsTransferableTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::IsTransferable,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::StateFileName,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(StateFileNameTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(InputBatchesTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::InputBatches, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::IsTransferable,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(IsTransferableTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(InputBatchTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::InputBatch, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    allowedChildIds.push_back(XMLTagType::InputBatch);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::InputBatches,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(InputBatchesTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(InputBatchTypeTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::InputBatchType, 
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::InputBatches);
+    allowedChildIds.push_back(XMLTagType::InputBatchType);
+    allowedChildIds.push_back(XMLTagType::DistributorName);
+    allowedChildIds.push_back(XMLTagType::SourceChannels);
+    allowedChildIds.push_back(XMLTagType::InputBatchChannels);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::InputBatch,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(InputBatchTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(DistributorNameTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::DistributorName,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::InputBatch);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::InputBatchType,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(InputBatchTypeTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(SourceChannelsTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::SourceChannels,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::InputBatch);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::DistributorName,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(DistributorNameTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(InputBatchChannelsTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::InputBatchChannels,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::InputBatch);
+    allowedChildIds.push_back(XMLTagType::ChannelName);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::SourceChannels,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(SourceChannelsTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ChannelNameTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::ChannelName, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::SourceChannels);
+    allowedParentIds.push_back(XMLTagType::InputBatchChannels);
+    allowedParentIds.push_back(XMLTagType::OutputChannel);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::ChannelName,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ChannelNameTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(OutputBatchesTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputBatches, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::InputBatch);
+    allowedChildIds.push_back(XMLTagType::ChannelName);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::InputBatchChannels,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(InputBatchChannelsTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(OutputBatchTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputBatch, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    allowedChildIds.push_back(XMLTagType::OutputBatch);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::OutputBatches,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(OutputBatchesTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(OutputBatchTypeTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputBatchType,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::OutputBatches);
+    allowedChildIds.push_back(XMLTagType::OutputBatchType);
+    allowedChildIds.push_back(XMLTagType::CollectorName);
+    allowedChildIds.push_back(XMLTagType::OutputChannels);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::OutputBatch,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(OutputBatchTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(CollectorNameTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::CollectorName, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::OutputBatch);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::OutputBatchType,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(OutputBatchTypeTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(OutputChannelsTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputChannels,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::OutputBatch);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::CollectorName,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(CollectorNameTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(OutputChannelTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::OutputChannel, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::OutputBatch);
+    allowedChildIds.push_back(XMLTagType::OutputChannel);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::OutputChannels,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(OutputChannelsTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ChannelConvertedNameTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::ChannelConvertedName,
-        TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::OutputChannels);
+    allowedChildIds.push_back(XMLTagType::ChannelName);
+    allowedChildIds.push_back(XMLTagType::ChannelConvertedName);
+    allowedChildIds.push_back(XMLTagType::ReceiverName);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::OutputChannel,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(OutputChannelTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(ReceiverNameTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::ReceiverName, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::OutputChannel);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::ChannelConvertedName,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ChannelConvertedNameTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(IsStartingTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::IsStarting, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::OutputChannel);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::ReceiverName,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(ReceiverNameTagName, prioriInfo));
+  }
 
-  tagName2TagHandlers.insert(
-    std::pair<std::string, TTagHandlersInfo>(IsFinishingTagName,
-      TTagHandlersInfo(TXMLTagInfo::ETagType::IsFinishing, TTagHandlers())));
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::IsStarting,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(IsStartingTagName, prioriInfo));
+  }
+
+  {
+    std::list<TXMLTagInfo::ETagType::Type> allowedParentIds;
+    std::list<TXMLTagInfo::ETagType::Type> allowedChildIds;
+    allowedParentIds.push_back(XMLTagType::Module);
+    TPrioriTagInfo prioriInfo(TTagHandlersInfo(XMLTagType::IsFinishing,
+      TTagHandlers()), allowedParentIds, allowedChildIds);
+    tagName2TagHandlers.insert(
+      std::pair<std::string, TPrioriTagInfo>(IsFinishingTagName, prioriInfo));
+  }
 
   for (TTagHandlersMap::iterator it = tagName2TagHandlers.begin();
     it != tagName2TagHandlers.end(); ++it)
   {
-    it->second.second.StartTagHandler = DefaultStartTagHandler;
-    it->second.second.EndTagHandler = DefaultEndTagHandler;
-    it->second.second.TagDataHandler = NULL;
+    it->second.handlers.second.StartTagHandler = &DefaultStartTagHandler;
+    it->second.handlers.second.EndTagHandler = &DefaultEndTagHandler;
+    it->second.handlers.second.TagDataHandler = NULL;
   }
 
-  tagName2TagHandlers[ExecutionTypeTagName].second.TagDataHandler =
+  tagName2TagHandlers[ExecutionTypeTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[TransportTypeTagName].second.TagDataHandler =
+  tagName2TagHandlers[TransportTypeTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[ExecutablePathTagName].second.TagDataHandler =
+  tagName2TagHandlers[ExecutablePathTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[ArgumentTagName].second.TagDataHandler =
+  tagName2TagHandlers[ArgumentTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[StopCommandLineTagName].second.TagDataHandler =
+  tagName2TagHandlers[StopCommandLineTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[NameTagName].second.TagDataHandler =
+  tagName2TagHandlers[NameTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[ValueTagName].second.TagDataHandler =
+  tagName2TagHandlers[ValueTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[InputFileNameTagName].second.TagDataHandler =
+  tagName2TagHandlers[InputFileNameTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[OutputFileNameTagName].second.TagDataHandler =
+  tagName2TagHandlers[OutputFileNameTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[HasStateTagName].second.TagDataHandler =
+  tagName2TagHandlers[HasStateTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[StateFileNameTagName].second.TagDataHandler =
+  tagName2TagHandlers[StateFileNameTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[IsTransferableTagName].second.TagDataHandler =
+  tagName2TagHandlers[IsTransferableTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[InputBatchTypeTagName].second.TagDataHandler =
+  tagName2TagHandlers[InputBatchTypeTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[DistributorNameTagName].second.TagDataHandler =
+  tagName2TagHandlers[DistributorNameTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[ChannelNameTagName].second.TagDataHandler =
+  tagName2TagHandlers[ChannelNameTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[OutputBatchTypeTagName].second.TagDataHandler =
+  tagName2TagHandlers[OutputBatchTypeTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[CollectorNameTagName].second.TagDataHandler =
+  tagName2TagHandlers[CollectorNameTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[ChannelConvertedNameTagName].second.TagDataHandler =
+  tagName2TagHandlers[ChannelConvertedNameTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[ReceiverNameTagName].second.TagDataHandler =
+  tagName2TagHandlers[ReceiverNameTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[IsStartingTagName].second.TagDataHandler =
+  tagName2TagHandlers[IsStartingTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
-  tagName2TagHandlers[IsFinishingTagName].second.TagDataHandler =
+  tagName2TagHandlers[IsFinishingTagName].handlers.second.TagDataHandler =
     &DefaultTagDataHandler;
 }
 
@@ -670,6 +964,44 @@ void TXMLWorkflowTree::DefaultStartTagHandler(
   TXMLWorkflowTree* workflowXMLTree, TXMLTagInfo* newTagInfo,
   const XML_Char** tagAttributes)
 {
+  if (newTagInfo == NULL)
+  {
+    std::stringstream info;
+    info << "Expected not NULL XML tag.";
+    throw std::runtime_error(info.str());
+  }
+
+  /* Checking relationships beetwen new and current tags */
+  {
+    std::list<TXMLTagInfo::ETagType::Type>::iterator it =
+      std::find(workflowXMLTree->currentTag->allowedChildTagIds.begin(),
+        workflowXMLTree->currentTag->allowedChildTagIds.end(),
+        newTagInfo->tagType);
+    if (it == workflowXMLTree->currentTag->allowedChildTagIds.end())
+    {
+      std::stringstream info;
+      info << "New XML tag with '" << newTagInfo->tagType << "' type can " <<
+        "not be child of tag with '" << workflowXMLTree->currentTag->tagType <<
+        "' type.";
+      throw std::runtime_error(info.str());
+    }
+  }
+  {
+    std::list<TXMLTagInfo::ETagType::Type>::iterator it =
+      std::find(newTagInfo->allowedParentTagIds.begin(),
+        newTagInfo->allowedParentTagIds.end(),
+        workflowXMLTree->currentTag->tagType);
+    if (it == newTagInfo->allowedParentTagIds.end())
+    {
+      std::stringstream info;
+      info << "New XML tag with '" << newTagInfo->tagType << "' type can " <<
+        "not be have parent tag with '" <<
+        workflowXMLTree->currentTag->tagType << "' type.";
+      throw std::runtime_error(info.str());
+    }
+  }
+
+  /* Start handling */
   newTagInfo->parentTag = workflowXMLTree->currentTag;
   if (workflowXMLTree->currentTag != NULL)
   {
@@ -730,9 +1062,13 @@ TTagHandlers::~TTagHandlers()
 {
 }
 
-TXMLTagInfo::TXMLTagInfo(ETagType::Type tagType, const TTagHandlers& handlers) :
-  tagType(tagType), handlers(handlers), parentTag(NULL), childTags(),
-  tagAttributes(), tagDataLength(0), tagData(NULL)
+TXMLTagInfo::TXMLTagInfo(ETagType::Type tagType, const TTagHandlers& handlers,
+  const std::list<TXMLTagInfo::ETagType::Type>& allowedParentTagIds,
+  const std::list<TXMLTagInfo::ETagType::Type>& allowedChildTagIds) :
+  tagType(tagType), handlers(handlers), parentTag(NULL),
+  allowedParentTagIds(allowedParentTagIds),
+  allowedChildTagIds(allowedChildTagIds), childTags(), tagAttributes(),
+  tagDataLength(0), tagData(NULL)
 {
 }
 
@@ -820,5 +1156,23 @@ const std::string TXMLWorkflowTree::IsStartingTagName = "isStarting";
 const std::string TXMLWorkflowTree::IsFinishingTagName = "isFinishing";
 
 TWrapperParser::~TWrapperParser()
+{
+}
+
+TXMLWorkflowTree::TPrioriTagInfo::TPrioriTagInfo() :
+  handlers(), allowedParentTagIds(), allowedChildTagIds()
+{
+}
+
+TXMLWorkflowTree::TPrioriTagInfo::TPrioriTagInfo(
+  const TTagHandlersInfo& handlers,
+  const std::list<TXMLTagInfo::ETagType::Type>& allowedParentTagIds,
+  std::list<TXMLTagInfo::ETagType::Type>& allowedChildTagIds) :
+  handlers(handlers), allowedParentTagIds(allowedParentTagIds),
+  allowedChildTagIds(allowedChildTagIds)
+{
+}
+
+TXMLWorkflowTree::TPrioriTagInfo::~TPrioriTagInfo()
 {
 }

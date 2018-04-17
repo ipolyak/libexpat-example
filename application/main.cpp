@@ -1091,7 +1091,8 @@ void TWrapperXMLParser::FillModules(const TXMLWorkflowTree* XMLTree,
   TXMLTagInfo* currentTag = XMLTree->rootTag;
   TXMLTagInfo* modulesTag = TXMLWorkflowTree::FindTagAmongChilds(currentTag,
     TXMLTagInfo::ETagType::Modules);
-  CheckFindResult(modulesTag, TXMLTagInfo::ETagType::Modules, currentTag->tagType);
+  CheckFindResult(modulesTag, TXMLTagInfo::ETagType::Modules,
+    currentTag->tagType);
   std::map<std::string, std::string>::iterator itAttrs =
     modulesTag->tagAttributes.find(TXMLWorkflowTree::CountAttributeName);
   CheckAttributeFindResult(itAttrs, modulesTag->tagAttributes.end(),
@@ -1100,7 +1101,8 @@ void TWrapperXMLParser::FillModules(const TXMLWorkflowTree* XMLTree,
   if (count <= 0)
   {
     std::stringstream info;
-    info << "Incorrect value of count modules. Expected one less module. " <<
+    info <<
+      "Incorrect value of count modules. Expected at least one module. " <<
       "Current value of count: " << count;
     throw std::runtime_error(info.str());
   }
@@ -1166,7 +1168,109 @@ void TWrapperXMLParser::FillModules(const TXMLWorkflowTree* XMLTree,
 void TWrapperXMLParser::CheckCorrectnessModuleInfos(
   const std::vector<TModuleInfo>& modules)
 {
-  // TODO: implement
+  /* Checking mix of execution and transport types for each module */
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    EExecutionType::Type execType = modules[i].executionType;
+    ETransportType::Type transportType = modules[i].transportType;
+    if (!((execType == EExecutionType::External) &&
+      (transportType == ETransportType::File)) &&
+      !((execType == EExecutionType::Internal) &&
+      (transportType == ETransportType::Pipe))) /* Invalid mixes */
+    {
+      std::stringstream info;
+      info << "Mix of '" << execType << "' execution type and '" <<
+        transportType << "' transport type is not supported. Module name: " <<
+        modules[i].name;
+      throw std::runtime_error(info.str());
+    }
+  }
+
+  /* Checking of non-transferability modules with state */
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    if (modules[i].hasState && modules[i].isTransferable)
+    {
+      std::stringstream info;
+      info << "Transferability of module with state is forbidden. Module " <<
+        "name: " << modules[i].name;
+      throw std::runtime_error(info.str());
+    }
+  }
+
+  /* Checking of distributor workflow id for input batches with collector type */
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    for (std::size_t j = 0; j < modules[i].inputBatches.size(); ++j)
+    {
+      if (modules[i].inputBatches[j].type == EInputBatchType::Collector)
+      {
+        if (modules[i].inputBatches[j].source ==
+          TModuleId::WorkflowIdUndefined)
+        {
+          std::stringstream info;
+          info << "Distributor id must be specified for input batch with " <<
+            "collector type. Module name: " << modules[i].name;
+          throw std::runtime_error(info.str());
+        }
+      }
+    }
+  }
+
+  /* Checking of collector workflow id for output batches with distributor type */
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    for (std::size_t j = 0; j < modules[i].outputBatches.size(); ++j)
+    {
+      if (modules[i].outputBatches[j].type == EOutputBatchType::Distributor)
+      {
+        if (modules[i].outputBatches[j].receiver ==
+          TModuleId::WorkflowIdUndefined)
+        {
+          std::stringstream info;
+          info << "Collector id must be specified for output batch with " <<
+            "distributor type. Module name: " << modules[i].name;
+          throw std::runtime_error(info.str());
+        }
+      }
+    }
+  }
+
+  /* Must be at least module with starting state */
+  bool startingModuleFounded = false;
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    if (modules[i].isStarting)
+    {
+      startingModuleFounded = true;
+      break;
+    }
+  }
+  if (!startingModuleFounded)
+  {
+    std::stringstream info;
+    info << "Must be at least one starting module.";
+    throw std::runtime_error(info.str());
+  }
+
+  /* Must be at least module with finishing state */
+  bool finishingModuleFounded = false;
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    if (modules[i].isFinishing)
+    {
+      finishingModuleFounded = true;
+      break;
+    }
+  }
+  if (!finishingModuleFounded)
+  {
+    std::stringstream info;
+    info << "Must be at least one finishing module.";
+    throw std::runtime_error(info.str());
+  }
+
+  // TODO: checking channels
 }
 
 void TWrapperXMLParser::CheckFindResult(const TXMLTagInfo* checkingTag,

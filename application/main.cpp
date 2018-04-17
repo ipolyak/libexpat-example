@@ -346,6 +346,8 @@ private:
   void FillModules(const TXMLWorkflowTree* XMLTree,
     std::vector<TModuleInfo>& modules);
 
+  void CheckCorrectnessModuleInfos(const std::vector<TModuleInfo>& modules);
+
   void CheckFindResult(const TXMLTagInfo* checkingTag,
     TXMLTagInfo::ETagType::Type searchTagType,
     TXMLTagInfo::ETagType::Type parentTagType);
@@ -419,6 +421,8 @@ std::vector<TModuleInfo>
 
   std::vector<TModuleInfo> modules;
   FillModules(workflowXMLTree, modules);
+
+  CheckCorrectnessModuleInfos(modules);
 
   delete workflowXMLTree;
   return modules;
@@ -827,7 +831,7 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   /* Filling of receiver workflow id */
   TXMLTagInfo* outputMessageChannelInfoChildTag =
     TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
-      TXMLTagInfo::ETagType::CollectorName);
+      TXMLTagInfo::ETagType::ReceiverName);
   std::string receiverName;
   Fill(outputMessageChannelInfoChildTag, receiverName);
   if (!receiverName.empty())
@@ -968,11 +972,19 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::InputFileName);
   Fill(moduleChildTag, value.inputFileName);
+  if (value.inputFileName.empty())
+  {
+    //value.inputFileName = TWrapperConfiguration::InputFileDefaultPrefix;
+  }
 
   /* Filling of output file name */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::OutputFileName);
   Fill(moduleChildTag, value.outputFileName);
+  if (value.outputFileName.empty())
+  {
+    //value.outputFileName = TWrapperConfiguration::OutputFileDefaultPrefix;
+  }
 
   /* Filling of 'has state' bool variable */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
@@ -983,6 +995,10 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::StateFileName);
   Fill(moduleChildTag, value.stateFileName);
+  if (value.stateFileName.empty())
+  {
+    //value.stateFileName = TWrapperConfiguration::StateFileDefaultName;
+  }
 
   /* Filling of 'is transferable' bool variable */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
@@ -1041,7 +1057,9 @@ void TWrapperXMLParser::FillModules(const TXMLWorkflowTree* XMLTree,
   while (itModulesTagChilds != itModulesTagChildsEnd)
   {
     TXMLTagInfo* moduleTag = *itModulesTagChilds;
-    Fill(moduleTag, modules[i].name);
+    TXMLTagInfo* moduleNameTag = TXMLWorkflowTree::FindTagAmongChilds(
+      moduleTag, TXMLTagInfo::ETagType::Name);
+    Fill(moduleNameTag, modules[i].name);
     if (modules[i].name.empty())
     {
       std::stringstream info;
@@ -1067,6 +1085,12 @@ void TWrapperXMLParser::FillModules(const TXMLWorkflowTree* XMLTree,
       TModuleId::TWorkflowId>(modules[i].name, i + 1));
   }
 
+  /* Filling module id for each module */
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    modules[i].id = TModuleId(moduleName2WorkflowId[modules[i].name]);
+  }
+
   /* Filling full information about each module */
   itModulesTagChilds = modulesTag->childTags.begin();
   itModulesTagChildsEnd = modulesTag->childTags.end();
@@ -1078,6 +1102,12 @@ void TWrapperXMLParser::FillModules(const TXMLWorkflowTree* XMLTree,
     ++i;
     ++itModulesTagChilds;
   }
+}
+
+void TWrapperXMLParser::CheckCorrectnessModuleInfos(
+  const std::vector<TModuleInfo>& modules)
+{
+  // TODO: implement
 }
 
 void TWrapperXMLParser::CheckFindResult(const TXMLTagInfo* checkingTag,

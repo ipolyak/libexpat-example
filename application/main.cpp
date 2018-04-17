@@ -288,6 +288,10 @@ private:
   void ReadWorkflowFile(const std::string& pathToWorkflowFile,
     TWorkflowFileContent& workflowFileContent);
 
+  static const std::string BoolTrueStr;
+
+  static const std::string BoolFalseStr;
+
   void Fill(const TXMLTagInfo* relativeTag,
     bool& value);
 
@@ -320,17 +324,20 @@ private:
   void Fill(const TXMLTagInfo* relativeTag, 
     ETransportType::Type& value);
 
-  static const std::string BoolTrueStr;
-
-  static const std::string BoolFalseStr;
-
   static const std::string RegularBatchTypeStr;
 
   static const std::string CollectorInputBatchTypeStr;
 
+  void Fill(const TXMLTagInfo* relativeTag, EInputBatchType::Type& value);
+
   void Fill(const TXMLTagInfo* relativeTag, TInputBatchInfo& value);
 
   static const std::string DistributorOutputBatchTypeStr;
+
+  void Fill(const TXMLTagInfo* relativeTag, EOutputBatchType::Type& value);
+
+  void Fill(const TXMLTagInfo* relativeTag,
+    TOutputBatchInfo::TOutputMessageChannelInfo& value);
 
   void Fill(const TXMLTagInfo* relativeTag, TOutputBatchInfo& value);
 
@@ -621,21 +628,285 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
 void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   EExecutionType::Type& value)
 {
+  if ((relativeTag->tagData != NULL) && (relativeTag->tagDataLength > 0))
+  {
+    std::string execTypeStr;
+    execTypeStr.resize(relativeTag->tagDataLength);
+    execTypeStr.assign(relativeTag->tagData, relativeTag->tagDataLength);
+    if (execTypeStr == ExternalExecutionTypeStr)
+    {
+      value = EExecutionType::External;
+    }
+    else if (execTypeStr == InternalExecutionTypeStr)
+    {
+      value = EExecutionType::Internal;
+    }
+    else
+    {
+      std::stringstream info;
+      info << "Unexpected value of execution type variable. Should be '" <<
+        ExternalExecutionTypeStr << "' or '" << InternalExecutionTypeStr <<
+        "' for tag with '" << relativeTag->tagType << "' type.";
+      throw std::runtime_error(info.str());
+    }
+  }
+  else
+  {
+    std::stringstream info;
+    info << "Execution type value should be set for tag with '" <<
+      relativeTag->tagType << "' type.";
+    throw std::runtime_error(info.str());
+  }
 }
 
 void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   ETransportType::Type& value)
 {
+  if ((relativeTag->tagData != NULL) && (relativeTag->tagDataLength > 0))
+  {
+    std::string transportTypeStr;
+    transportTypeStr.resize(relativeTag->tagDataLength);
+    transportTypeStr.assign(relativeTag->tagData, relativeTag->tagDataLength);
+    if (transportTypeStr == FileTransportTypeStr)
+    {
+      value = ETransportType::File;
+    }
+    else if (transportTypeStr == PipeTransportTypeStr)
+    {
+      value = ETransportType::Pipe;
+    }
+    else
+    {
+      std::stringstream info;
+      info << "Unexpected value of transport type variable. Should be '" <<
+        FileTransportTypeStr << "' or '" << PipeTransportTypeStr <<
+        "' for tag with '" << relativeTag->tagType << "' type.";
+      throw std::runtime_error(info.str());
+    }
+  }
+  else
+  {
+    std::stringstream info;
+    info << "Transport type value should be set for tag with '" <<
+      relativeTag->tagType << "' type.";
+    throw std::runtime_error(info.str());
+  }
+}
+
+void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
+  EInputBatchType::Type& value)
+{
+  if ((relativeTag->tagData != NULL) && (relativeTag->tagDataLength > 0))
+  {
+    std::string inputBatchTypeStr;
+    inputBatchTypeStr.resize(relativeTag->tagDataLength);
+    inputBatchTypeStr.assign(relativeTag->tagData, relativeTag->tagDataLength);
+    if (inputBatchTypeStr == RegularBatchTypeStr)
+    {
+      value = EInputBatchType::Regular;
+    }
+    else if (inputBatchTypeStr == CollectorInputBatchTypeStr)
+    {
+      value = EInputBatchType::Collector;
+    }
+    else
+    {
+      std::stringstream info;
+      info << "Unexpected value of input batch type variable. Should be '" <<
+        RegularBatchTypeStr << "' or '" << CollectorInputBatchTypeStr <<
+        "' for tag with '" << relativeTag->tagType << "' type.";
+      throw std::runtime_error(info.str());
+    }
+  }
+  else
+  {
+    std::stringstream info;
+    info << "Input batch type value should be set for tag with '" <<
+      relativeTag->tagType << "' type.";
+    throw std::runtime_error(info.str());
+  }
 }
 
 void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   TInputBatchInfo& value)
 {
+  /* Filling of source channels */
+  TXMLTagInfo* inputBatchChildTag =
+    TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
+    TXMLTagInfo::ETagType::SourceChannels);
+  Fill(inputBatchChildTag, value.sourceChannels);
+  for (std::size_t i = 0; i < value.sourceChannels.size(); ++i)
+  {
+    if (value.sourceChannels[i].empty())
+    {
+      std::stringstream info;
+      info << "Empty source channel name in input batch is forbidden.";
+      throw std::runtime_error(info.str());
+    }
+  }
+
+  /* Filling of distributor workflow id */
+  inputBatchChildTag =
+    TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
+    TXMLTagInfo::ETagType::DistributorName);
+  std::string distributorName;
+  Fill(inputBatchChildTag, distributorName);
+  if (!distributorName.empty())
+  {
+    std::map<std::string, TModuleId::TWorkflowId>::iterator it =
+      moduleName2WorkflowId.find(distributorName);
+    if (it == moduleName2WorkflowId.end())
+    {
+      std::stringstream info;
+      info << "Distributor with '" << distributorName << "' name unexisted " <<
+        "in granted workflow.";
+      throw std::runtime_error(info.str());
+    }
+    value.source = it->second;
+  }
+
+  /* Filling of input batch channels */
+  inputBatchChildTag =
+    TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
+    TXMLTagInfo::ETagType::InputBatchChannels);
+  Fill(inputBatchChildTag, value.channels);
+  for (std::size_t i = 0; i < value.channels.size(); ++i)
+  {
+    if (value.channels[i].empty())
+    {
+      std::stringstream info;
+      info << "Empty input batch channel name in input batch is forbidden.";
+      throw std::runtime_error(info.str());
+    }
+  }
+
+  /* Filling of input batch type */
+  inputBatchChildTag =
+    TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
+      TXMLTagInfo::ETagType::InputBatchType);
+  Fill(inputBatchChildTag, value.type);
+}
+
+void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
+  EOutputBatchType::Type& value)
+{
+  if ((relativeTag->tagData != NULL) && (relativeTag->tagDataLength > 0))
+  {
+    std::string outputBatchTypeStr;
+    outputBatchTypeStr.resize(relativeTag->tagDataLength);
+    outputBatchTypeStr.assign(relativeTag->tagData, relativeTag->tagDataLength);
+    if (outputBatchTypeStr == RegularBatchTypeStr)
+    {
+      value = EOutputBatchType::Regular;
+    }
+    else if (outputBatchTypeStr == DistributorOutputBatchTypeStr)
+    {
+      value = EOutputBatchType::Distributor;
+    }
+    else
+    {
+      std::stringstream info;
+      info << "Unexpected value of output batch type variable. Should be '" <<
+        RegularBatchTypeStr << "' or '" << DistributorOutputBatchTypeStr <<
+        "' for tag with '" << relativeTag->tagType << "' type.";
+      throw std::runtime_error(info.str());
+    }
+  }
+  else
+  {
+    std::stringstream info;
+    info << "Output batch type value should be set for tag with '" <<
+      relativeTag->tagType << "' type.";
+    throw std::runtime_error(info.str());
+  }
+}
+
+void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
+  TOutputBatchInfo::TOutputMessageChannelInfo& value)
+{
+  /* Filling of receiver workflow id */
+  TXMLTagInfo* outputMessageChannelInfoChildTag =
+    TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
+      TXMLTagInfo::ETagType::CollectorName);
+  std::string receiverName;
+  Fill(outputMessageChannelInfoChildTag, receiverName);
+  if (!receiverName.empty())
+  {
+    std::map<std::string, TModuleId::TWorkflowId>::iterator it =
+      moduleName2WorkflowId.find(receiverName);
+    if (it == moduleName2WorkflowId.end())
+    {
+      std::stringstream info;
+      info << "Receiver module with '" << receiverName <<
+        "' name unexisted in granted workflow.";
+      throw std::runtime_error(info.str());
+    }
+    value.receiver = it->second;
+  }
+  else
+  {
+    std::stringstream info;
+    info << "Empty receiver name in output batch is forbidden.";
+    throw std::runtime_error(info.str());
+  }
+
+  /* Filling of channel name */
+  outputMessageChannelInfoChildTag =
+    TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
+      TXMLTagInfo::ETagType::ChannelName);
+  Fill(outputMessageChannelInfoChildTag, value.name);
+  if (value.name.empty())
+  {
+    std::stringstream info;
+    info << "Empty channel name in output batch is forbidden.";
+    throw std::runtime_error(info.str());
+  }
+
+  /* Filling of converted channel name */
+  outputMessageChannelInfoChildTag =
+    TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
+      TXMLTagInfo::ETagType::ChannelConvertedName);
+  Fill(outputMessageChannelInfoChildTag, value.convertedName);
+  if (value.convertedName.empty())
+  {
+    std::stringstream info;
+    info << "Empty converted channel name in output batch is forbidden.";
+    throw std::runtime_error(info.str());
+  }
 }
 
 void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   TOutputBatchInfo& value)
 {
+  /* Filling of collector workflow id */
+  TXMLTagInfo* outputBatchChildTag =
+    TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
+      TXMLTagInfo::ETagType::CollectorName);
+  std::string collectorName;
+  Fill(outputBatchChildTag, collectorName);
+  if (!collectorName.empty())
+  {
+    std::map<std::string, TModuleId::TWorkflowId>::iterator it =
+      moduleName2WorkflowId.find(collectorName);
+    if (it == moduleName2WorkflowId.end())
+    {
+      std::stringstream info;
+      info << "Collector with '" << collectorName << "' name unexisted " <<
+        "in granted workflow.";
+      throw std::runtime_error(info.str());
+    }
+    value.receiver = it->second;
+  }
+
+  /* Filling of information about output channels */
+  outputBatchChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
+    TXMLTagInfo::ETagType::OutputChannels);
+  Fill(outputBatchChildTag, value.channels);
+
+  /* Filling of output batch type */
+  outputBatchChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
+    TXMLTagInfo::ETagType::OutputBatchType);
+  Fill(outputBatchChildTag, value.type);
 }
 
 void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
@@ -645,6 +916,12 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   TXMLTagInfo* moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::Name);
   Fill(moduleChildTag, value.name);
+  if (value.name.empty())
+  {
+    std::stringstream info;
+    info << "Empty module name is forbidden.";
+    throw std::runtime_error(info.str());
+  }
 
   /* Filling of execution type */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
@@ -660,6 +937,12 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::ExecutablePath);
   Fill(moduleChildTag, value.executablePath);
+  if (value.executablePath.empty())
+  {
+    std::stringstream info;
+    info << "Empty executable path is forbidden.";
+    throw std::runtime_error(info.str());
+  }
 
   /* Filling of start command line args */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
@@ -759,6 +1042,12 @@ void TWrapperXMLParser::FillModules(const TXMLWorkflowTree* XMLTree,
   {
     TXMLTagInfo* moduleTag = *itModulesTagChilds;
     Fill(moduleTag, modules[i].name);
+    if (modules[i].name.empty())
+    {
+      std::stringstream info;
+      info << "Empty module name is forbidden.";
+      throw std::runtime_error(info.str());
+    }
     ++i;
     ++itModulesTagChilds;
   }

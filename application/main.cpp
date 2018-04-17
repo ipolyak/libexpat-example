@@ -521,11 +521,15 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
     /* Filling object name */
     TXMLTagInfo* childTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
       TXMLTagInfo::ETagType::Name);
+    CheckFindResult(childTag, TXMLTagInfo::ETagType::Name,
+      relativeTag->tagType);
     Fill(childTag, value.first);
 
     /* Filling object value */
     childTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
       TXMLTagInfo::ETagType::Value);
+    CheckFindResult(childTag, TXMLTagInfo::ETagType::Value,
+      relativeTag->tagType);
     Fill(childTag, value.second);
   }
   else
@@ -738,6 +742,8 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   TXMLTagInfo* inputBatchChildTag =
     TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::SourceChannels);
+  CheckFindResult(inputBatchChildTag, TXMLTagInfo::ETagType::SourceChannels,
+    relativeTag->tagType);
   Fill(inputBatchChildTag, value.sourceChannels);
   for (std::size_t i = 0; i < value.sourceChannels.size(); ++i)
   {
@@ -753,6 +759,8 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   inputBatchChildTag =
     TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::DistributorName);
+  CheckFindResult(inputBatchChildTag, TXMLTagInfo::ETagType::DistributorName,
+    relativeTag->tagType);
   std::string distributorName;
   Fill(inputBatchChildTag, distributorName);
   if (!distributorName.empty())
@@ -773,6 +781,8 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   inputBatchChildTag =
     TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::InputBatchChannels);
+  CheckFindResult(inputBatchChildTag,
+    TXMLTagInfo::ETagType::InputBatchChannels, relativeTag->tagType);
   Fill(inputBatchChildTag, value.channels);
   for (std::size_t i = 0; i < value.channels.size(); ++i)
   {
@@ -788,6 +798,8 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   inputBatchChildTag =
     TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
       TXMLTagInfo::ETagType::InputBatchType);
+  CheckFindResult(inputBatchChildTag, TXMLTagInfo::ETagType::InputBatchType,
+    relativeTag->tagType);
   Fill(inputBatchChildTag, value.type);
 }
 
@@ -832,6 +844,8 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   TXMLTagInfo* outputMessageChannelInfoChildTag =
     TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
       TXMLTagInfo::ETagType::ReceiverName);
+  CheckFindResult(outputMessageChannelInfoChildTag,
+    TXMLTagInfo::ETagType::ReceiverName, relativeTag->tagType);
   std::string receiverName;
   Fill(outputMessageChannelInfoChildTag, receiverName);
   if (!receiverName.empty())
@@ -858,6 +872,8 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   outputMessageChannelInfoChildTag =
     TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
       TXMLTagInfo::ETagType::ChannelName);
+  CheckFindResult(outputMessageChannelInfoChildTag,
+    TXMLTagInfo::ETagType::ChannelName, relativeTag->tagType);
   Fill(outputMessageChannelInfoChildTag, value.name);
   if (value.name.empty())
   {
@@ -870,6 +886,8 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   outputMessageChannelInfoChildTag =
     TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
       TXMLTagInfo::ETagType::ChannelConvertedName);
+  CheckFindResult(outputMessageChannelInfoChildTag,
+    TXMLTagInfo::ETagType::ChannelConvertedName, relativeTag->tagType);
   Fill(outputMessageChannelInfoChildTag, value.convertedName);
   if (value.convertedName.empty())
   {
@@ -886,6 +904,8 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   TXMLTagInfo* outputBatchChildTag =
     TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
       TXMLTagInfo::ETagType::CollectorName);
+  CheckFindResult(outputBatchChildTag, TXMLTagInfo::ETagType::CollectorName,
+    relativeTag->tagType);
   std::string collectorName;
   Fill(outputBatchChildTag, collectorName);
   if (!collectorName.empty())
@@ -905,11 +925,15 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   /* Filling of information about output channels */
   outputBatchChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::OutputChannels);
+  CheckFindResult(outputBatchChildTag, TXMLTagInfo::ETagType::OutputChannels,
+    relativeTag->tagType);
   Fill(outputBatchChildTag, value.channels);
 
   /* Filling of output batch type */
   outputBatchChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::OutputBatchType);
+  CheckFindResult(outputBatchChildTag, TXMLTagInfo::ETagType::OutputBatchType,
+    relativeTag->tagType);
   Fill(outputBatchChildTag, value.type);
 }
 
@@ -919,6 +943,8 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   /* Filling of module name */
   TXMLTagInfo* moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::Name);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::Name,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.name);
   if (value.name.empty())
   {
@@ -930,16 +956,22 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   /* Filling of execution type */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::ExecutionType);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::ExecutionType,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.executionType);
 
   /* Filling of transport type */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::TransportType);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::TransportType,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.transportType);
 
   /* Filling of executable path */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::ExecutablePath);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::ExecutablePath,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.executablePath);
   if (value.executablePath.empty())
   {
@@ -951,26 +983,36 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   /* Filling of start command line args */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::StartCommandLineArgs);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::StartCommandLineArgs,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.startCommandLineArgs);
 
   /* Filling of stop command line */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::StopCommandLine);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::StopCommandLine,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.stopCommandLine);
 
   /* Filling of module parameters */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::ModuleParameters);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::ModuleParameters,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.parameters);
 
   /* Filling of environment variables */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::EnvironmentVariables);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::EnvironmentVariables,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.environmentVariables);
 
   /* Filling of input file name */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::InputFileName);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::InputFileName,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.inputFileName);
   if (value.inputFileName.empty())
   {
@@ -980,6 +1022,8 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   /* Filling of output file name */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::OutputFileName);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::OutputFileName,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.outputFileName);
   if (value.outputFileName.empty())
   {
@@ -989,11 +1033,15 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   /* Filling of 'has state' bool variable */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::HasState);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::HasState,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.hasState);
 
   /* Filling of output file name */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::StateFileName);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::StateFileName,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.stateFileName);
   if (value.stateFileName.empty())
   {
@@ -1003,26 +1051,36 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   /* Filling of 'is transferable' bool variable */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::IsTransferable);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::IsTransferable,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.isTransferable);
 
   /* Filling of input batches */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::InputBatches);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::InputBatches,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.inputBatches);
 
   /* Filling of output batches */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::OutputBatches);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::OutputBatches,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.outputBatches);
 
   /* Filling of 'is starting' bool variable */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::IsStarting);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::IsStarting,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.isStarting);
 
   /* Filling of 'is finishing' bool variable */
   moduleChildTag = TXMLWorkflowTree::FindTagAmongChilds(relativeTag,
     TXMLTagInfo::ETagType::IsFinishing);
+  CheckFindResult(moduleChildTag, TXMLTagInfo::ETagType::IsFinishing,
+    relativeTag->tagType);
   Fill(moduleChildTag, value.isFinishing);
 }
 
@@ -1059,6 +1117,7 @@ void TWrapperXMLParser::FillModules(const TXMLWorkflowTree* XMLTree,
     TXMLTagInfo* moduleTag = *itModulesTagChilds;
     TXMLTagInfo* moduleNameTag = TXMLWorkflowTree::FindTagAmongChilds(
       moduleTag, TXMLTagInfo::ETagType::Name);
+    CheckFindResult(moduleNameTag, TXMLTagInfo::ETagType::Name, moduleTag->tagType);
     Fill(moduleNameTag, modules[i].name);
     if (modules[i].name.empty())
     {

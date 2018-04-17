@@ -246,9 +246,14 @@ struct TXMLWorkflowTree
 
   static const std::string IsFinishingTagName;
 
+  static const std::string CountAttributeName;
+
   TXMLWorkflowTree();
 
   ~TXMLWorkflowTree();
+
+  static TXMLTagInfo* FindTagAmongChilds(TXMLTagInfo* relativeTag,
+    TXMLTagInfo::ETagType::Type searchTagType);
 
   static void DefaultStartTagHandler(TXMLWorkflowTree* workflowXMLTree,
     TXMLTagInfo* newTagInfo, const XML_Char** tagAttributes);
@@ -280,8 +285,84 @@ private:
   void ReadWorkflowFile(const std::string& pathToWorkflowFile,
     TWorkflowFileContent& workflowFileContent);
 
-  void FillModuleInfos(const TXMLWorkflowTree* XMLTree,
+  void FillModuleName(const TXMLTagInfo* relativeTag, int moduleNumber,
+    std::string& name);
+
+  static const std::string InternalExecutionTypeStr;
+
+  static const std::string ExternalExecutionTypeStr;
+
+  void FillExecutionType(const TXMLTagInfo* relativeTag, int moduleNumber,
+    EExecutionType::Type& executionType);
+
+  static const std::string PipeTransportTypeStr;
+
+  static const std::string FileTransportTypeStr;
+
+  void FillTransportType(const TXMLTagInfo* relativeTag, int moduleNumber,
+    ETransportType::Type& transportType);
+
+  void FillExecutablePath(const TXMLTagInfo* relativeTag, int moduleNumber,
+    std::string& executablePath);
+
+  void FillStartCommandLineArgs(const TXMLTagInfo* relativeTag,
+    int moduleNumber, std::vector<std::string>& startCommandLineArgs);
+
+  void FillStopCommandLine(const TXMLTagInfo* relativeTag,
+    int moduleNumber, std::string& stopCommandLine);
+
+  void FillParameters(const TXMLTagInfo* relativeTag, int moduleNumber,
+    std::vector< std::pair<std::string, std::string> >& parameters);
+
+  void FillEnvironmentVariables(const TXMLTagInfo* relativeTag,
+    int moduleNumber,
+    std::map<std::string, std::string>& environmentVariables);
+
+  void FillInputFileName(const TXMLTagInfo* relativeTag,
+    int moduleNumber, std::string& inputFileName);
+
+  void FillOutputFileName(const TXMLTagInfo* relativeTag,
+    int moduleNumber, std::string& outputFileName);
+
+  static const std::string BoolTrueStr;
+
+  static const std::string BoolFalseStr;
+
+  void FillIsTransferable(const TXMLTagInfo* relativeTag,
+    int moduleNumber, bool& isTransferable);
+
+  void FillHasState(const TXMLTagInfo* relativeTag,
+    int moduleNumber, bool& hasState);
+
+  void FillStateFileName(const TXMLTagInfo* relativeTag,
+    int moduleNumber, std::string& stateFileName);
+
+  static const std::string RegularBatchTypeStr;
+
+  static const std::string CollectorInputBatchTypeStr;
+
+  void FillInputBatches(const TXMLTagInfo* relativeTag,
+    int moduleNumber, std::vector<TInputBatchInfo>& inputBatches);
+
+  static const std::string DistributorOutputBatchTypeStr;
+
+  void FillOutputBatches(const TXMLTagInfo* relativeTag,
+    int moduleNumber, std::vector<TOutputBatchInfo>& outputBatches);
+
+  void FillIsStarting(const TXMLTagInfo* relativeTag,
+    int moduleNumber, bool& isStarting);
+
+  void FillIsFinishing(const TXMLTagInfo* relativeTag,
+    int moduleNumber, bool& isFinishing);
+
+  void FillModule(const TXMLTagInfo* relativeTag, TModuleInfo& module);
+
+  void FillModules(const TXMLWorkflowTree* XMLTree,
     std::vector<TModuleInfo>& modules);
+
+  void CheckFindResult(const TXMLTagInfo* checkingTag,
+    TXMLTagInfo::ETagType::Type searchTagType,
+    TXMLTagInfo::ETagType::Type parentTagType);
 
   static void XMLCALL StartElementHandler(void* workflowXMLTree,
     const XML_Char* tagName, const XML_Char** tagAttributes);
@@ -345,7 +426,7 @@ std::vector<TModuleInfo>
   delete[] workflowFileContent.buffer;
 
   std::vector<TModuleInfo> modules;
-  FillModuleInfos(workflowXMLTree, modules);
+  FillModules(workflowXMLTree, modules);
 
   //int modulesCount = EjectModulesCount();
   //std::vector<TModuleInfo> modules(modulesCount);
@@ -398,9 +479,117 @@ void TWrapperXMLParser::ReadWorkflowFile(const std::string& pathToWorkflowFile,
   workflowFileContent.buffer = buffer;
 }
 
-void TWrapperXMLParser::FillModuleInfos(const TXMLWorkflowTree* XMLTree,
+void TWrapperXMLParser::FillModuleName(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::string& name)
+{
+}
+
+void TWrapperXMLParser::FillExecutionType(const TXMLTagInfo* relativeTag,
+  int moduleNumber, EExecutionType::Type& executionType)
+{
+}
+
+void TWrapperXMLParser::FillTransportType(const TXMLTagInfo* relativeTag,
+  int moduleNumber, ETransportType::Type& transportType)
+{
+}
+
+void TWrapperXMLParser::FillExecutablePath(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::string& executablePath)
+{
+}
+
+void TWrapperXMLParser::FillStartCommandLineArgs(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::vector<std::string>& startCommandLineArgs)
+{
+}
+
+void TWrapperXMLParser::FillStopCommandLine(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::string& stopCommandLine)
+{
+}
+
+void TWrapperXMLParser::FillParameters(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::vector<std::pair<std::string, std::string>>& parameters)
+{
+}
+
+void TWrapperXMLParser::FillEnvironmentVariables(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::map<std::string, std::string>& environmentVariables)
+{
+}
+
+void TWrapperXMLParser::FillInputFileName(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::string& inputFileName)
+{
+}
+
+void TWrapperXMLParser::FillOutputFileName(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::string& outputFileName)
+{
+}
+
+void TWrapperXMLParser::FillIsTransferable(const TXMLTagInfo* relativeTag,
+  int moduleNumber, bool& isTransferable)
+{
+}
+
+void TWrapperXMLParser::FillHasState(const TXMLTagInfo* relativeTag,
+  int moduleNumber, bool& hasState)
+{
+}
+
+void TWrapperXMLParser::FillStateFileName(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::string& stateFileName)
+{
+}
+
+void TWrapperXMLParser::FillInputBatches(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::vector<TInputBatchInfo>& inputBatches)
+{
+}
+
+void TWrapperXMLParser::FillOutputBatches(const TXMLTagInfo* relativeTag,
+  int moduleNumber, std::vector<TOutputBatchInfo>& outputBatches)
+{
+}
+
+void TWrapperXMLParser::FillIsStarting(const TXMLTagInfo* relativeTag,
+  int moduleNumber, bool& isStarting)
+{
+}
+
+void TWrapperXMLParser::FillIsFinishing(const TXMLTagInfo* relativeTag,
+  int moduleNumber, bool& isFinishing)
+{
+}
+
+void TWrapperXMLParser::FillModule(const TXMLTagInfo* relativeTag,
+  TModuleInfo& module)
+{
+}
+
+void TWrapperXMLParser::FillModules(const TXMLWorkflowTree* XMLTree,
   std::vector<TModuleInfo>& modules)
 {
+  TXMLTagInfo* currentTag = XMLTree->rootTag;
+  TXMLTagInfo* modulesTag = TXMLWorkflowTree::FindTagAmongChilds(currentTag,
+    TXMLTagInfo::ETagType::Modules);
+  CheckFindResult(modulesTag, TXMLTagInfo::ETagType::Modules, currentTag->tagType);
+}
+
+void TWrapperXMLParser::CheckFindResult(const TXMLTagInfo* checkingTag,
+  TXMLTagInfo::ETagType::Type searchTagType,
+  TXMLTagInfo::ETagType::Type parentTagType)
+{
+  if (checkingTag == NULL)
+  {
+    std::stringstream info;
+    info << "XML tag with '" << searchTagType << "' type " <<
+      "didn't found among childs of tag with '" << parentTagType <<
+      "' type.";
+    throw std::runtime_error(info.str());
+  }
 }
 
 void TWrapperXMLParser::StartElementHandler(void* workflowXMLTree,
@@ -1012,6 +1201,35 @@ TXMLWorkflowTree::~TXMLWorkflowTree()
   }
 }
 
+TXMLTagInfo* TXMLWorkflowTree::FindTagAmongChilds(TXMLTagInfo* relativeTag,
+  TXMLTagInfo::ETagType::Type searchTagType)
+{
+  if (relativeTag == NULL)
+  {
+    std::stringstream info;
+    info << "Expected not NULL XML tag.";
+    throw std::runtime_error(info.str());
+  }
+
+  for (std::list<TXMLTagInfo*>::iterator it = relativeTag->childTags.begin();
+    it != relativeTag->childTags.end(); ++it)
+  {
+    TXMLTagInfo* childTag = *it;
+    if (childTag == NULL)
+    {
+      std::stringstream info;
+      info << "Expected not NULL XML tag.";
+      throw std::runtime_error(info.str());
+    }
+    if (childTag->tagType == searchTagType)
+    {
+      return childTag;
+    }
+  }
+
+  return NULL;
+}
+
 void TXMLWorkflowTree::DefaultStartTagHandler(
   TXMLWorkflowTree* workflowXMLTree, TXMLTagInfo* newTagInfo,
   const XML_Char** tagAttributes)
@@ -1208,6 +1426,27 @@ const std::string TXMLWorkflowTree::ReceiverNameTagName = "receiverName";
 const std::string TXMLWorkflowTree::IsStartingTagName = "isStarting";
 
 const std::string TXMLWorkflowTree::IsFinishingTagName = "isFinishing";
+
+const std::string TXMLWorkflowTree::CountAttributeName = "count";
+
+
+const std::string TWrapperXMLParser::InternalExecutionTypeStr = "Internal";
+
+const std::string TWrapperXMLParser::ExternalExecutionTypeStr = "External";
+
+const std::string TWrapperXMLParser::PipeTransportTypeStr = "Pipe";
+
+const std::string TWrapperXMLParser::FileTransportTypeStr = "File";
+
+const std::string TWrapperXMLParser::BoolTrueStr = "yes";
+
+const std::string TWrapperXMLParser::BoolFalseStr = "no";
+
+const std::string TWrapperXMLParser::RegularBatchTypeStr = "Regular";
+
+const std::string TWrapperXMLParser::CollectorInputBatchTypeStr = "Collector";
+
+const std::string TWrapperXMLParser::DistributorOutputBatchTypeStr = "Distributor";
 
 TWrapperParser::~TWrapperParser()
 {

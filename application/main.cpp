@@ -1271,6 +1271,88 @@ void TWrapperParser::CheckCorrectnessModuleInfos(
     throw std::runtime_error(info.str());
   }
 
+  /* Checking channels for uniqueness in each input batch of each module */
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    for (std::size_t j = 0; j < modules[i].inputBatches.size(); ++j)
+    {
+      const TInputBatchInfo& inputBatch = modules[i].inputBatches[j];
+      if (inputBatch.type == EInputBatchType::Collector)
+      {
+        /* Checking source channels */
+        for (std::size_t k = 0; k < inputBatch.sourceChannels.size(); ++k)
+        {
+          const std::string& lhSourceChannelName =
+            inputBatch.sourceChannels[k];
+          for (std::size_t l = k + 1; l < inputBatch.sourceChannels.size();
+            ++l)
+          {
+            const std::string& rhSourceChannelName =
+              inputBatch.sourceChannels[l];
+            if (lhSourceChannelName == rhSourceChannelName)
+            {
+              std::stringstream info;
+              info << "Source channels in input batch must be unique. " <<
+                "Module name: " << modules[i].name << ". Non-unique " <<
+                "source channel name: " << lhSourceChannelName;
+              throw std::runtime_error(info.str());
+            }
+          }
+        }
+      }
+
+      /* Checking channels */
+      for (std::size_t k = 0; k < inputBatch.channels.size(); ++k)
+      {
+        const std::string& lhChannelName = inputBatch.channels[k];
+        for (std::size_t l = k + 1; l < inputBatch.channels.size();
+          ++l)
+        {
+          const std::string& rhChannelName = inputBatch.channels[l];
+          if (lhChannelName == rhChannelName)
+          {
+            std::stringstream info;
+            info << "Channels in input batch must be unique. " <<
+              "Module name: " << modules[i].name << ". Non-unique " <<
+              "channel name: " << lhChannelName;
+            throw std::runtime_error(info.str());
+          }
+        }
+      }
+    }
+  }
+
+  /* Checking channels for uniqueness in each output batch of each module */
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    for (std::size_t j = 0; j < modules[i].outputBatches.size(); ++j)
+    {
+      const TOutputBatchInfo& outputBatch = modules[i].outputBatches[j];
+      for (std::size_t k = 0; k < outputBatch.channels.size(); ++k)
+      {
+        const std::string& lhOutputChannelName =
+          outputBatch.channels[k].name;
+        TModuleId::TWorkflowId lhWorkflowId = outputBatch.channels[k].receiver;
+        for (std::size_t l = k + 1; l < outputBatch.channels.size(); ++l)
+        {
+          const std::string& rhOutputChannelName =
+            outputBatch.channels[l].name;
+          TModuleId::TWorkflowId rhWorkflowId =
+            outputBatch.channels[l].receiver;
+          if ((lhOutputChannelName == rhOutputChannelName) &&
+            (lhWorkflowId == rhWorkflowId))
+          {
+            std::stringstream info;
+            info << "Channels in output batch must be unique for one " <<
+              " receiver. Module name: " << modules[i].name << ". " <<
+              "Non-unique channel name: " << lhOutputChannelName;
+            throw std::runtime_error(info.str());
+          }
+        }
+      }
+    }
+  }
+
   ///* Must be at least one input batch in each module */
   //bool isCorrect = true;
   //int pos;
@@ -1384,9 +1466,10 @@ void TWrapperParser::CheckCorrectnessModuleInfos(
         if (!channelsIsCorrect)
         {
           std::stringstream info;
-          info << "Collector module with '" << collectorId.workflowId << "'" <<
-            " workflow id was not found for output batch of module with '" <<
-            modules[i].name << "' name.";
+          info << "There is no much between output channels of distributor " <<
+            " output batch in module with '" << modules[i].name << "' and " <<
+            "source channels in some input batch of module with '" <<
+            collectorModule.name << "' name.";
           throw std::runtime_error(info.str());
         }
       }

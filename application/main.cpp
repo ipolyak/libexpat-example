@@ -3,6 +3,8 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <cstring> // memcpy
+#include <stdexcept> // exception
 #include <stdlib.h> // atoi
 #include <map>
 #include <list>
@@ -59,7 +61,7 @@ public:
   virtual ~TWrapperParser() = 0;
   virtual std::vector<TModuleInfo>
     Parse(const std::string& pathToWorkflowFile) = 0;
-  void TWrapperParser::CheckCorrectnessModuleInfos(
+  void CheckCorrectnessModuleInfos(
     const std::vector<TModuleInfo>& modules);
 };
 
@@ -432,7 +434,7 @@ std::vector<TModuleInfo>
 void TWrapperXMLParser::ReadWorkflowFile(const std::string& pathToWorkflowFile,
   TWorkflowFileContent& workflowFileContent)
 {
-  std::ifstream workflowFile(pathToWorkflowFile, std::ios::binary);
+  std::ifstream workflowFile(pathToWorkflowFile.c_str(), std::ios::binary);
   if (!workflowFile.is_open())
   {
     std::stringstream info;
@@ -564,7 +566,7 @@ void TWrapperXMLParser::Fill(const TXMLTagInfo* relativeTag,
   /* Filling elements of vector */
   std::list<TXMLTagInfo*>::const_iterator it = relativeTag->childTags.begin();
   std::list<TXMLTagInfo*>::const_iterator itEnd = relativeTag->childTags.end();
-  std::vector<T>::iterator itVector = value.begin();
+  typename std::vector<T>::iterator itVector = value.begin();
   int i = 0;
   while (it != itEnd)
   {

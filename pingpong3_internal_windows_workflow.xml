@@ -1,0 +1,167 @@
+<?xml version="1.0"?>
+<workflow>
+  <modules count="3">
+    <module>
+      <name>Module A</name>
+      <executionType>Internal</executionType>
+      <transportType>Pipe</transportType>
+      <executablePath>fullpath/to/wrapper_test_pingpong3_internal_child_A.exe</executablePath>
+      <startCommandLineArgs count="0">
+      </startCommandLineArgs>
+      <stopCommandLine></stopCommandLine>
+      <moduleParameters count="2">
+      	<parameter>
+          <name>aaa</name>
+          <value>bbb</value>
+        </parameter>
+        <parameter>
+          <name>ccc</name>
+          <value>ddd</value>
+        </parameter>
+      </moduleParameters>
+      <environmentVariables count="0">
+      </environmentVariables>
+      <inputFileName>inputs</inputFileName>
+      <outputFileName>outputs</outputFileName>
+      <hasState>no</hasState>
+      <stateFileName>state</stateFileName>
+      <isTransferable>no</isTransferable>
+      <inputBatches count="1">
+        <inputBatch>
+          <inputBatchType>Regular</inputBatchType>
+          <distributorName></distributorName>
+          <sourceChannels count="0">
+          </sourceChannels>
+          <inputBatchChannels count="1">
+            <channelName>A-ib0-ch0</channelName>
+          </inputBatchChannels>
+        </inputBatch>
+      </inputBatches>
+      <outputBatches count="2">
+        <outputBatch>
+          <outputBatchType>Distributor</outputBatchType>
+          <collectorName>Module C</collectorName>
+          <outputChannels count="1">
+            <outputChannel>
+              <channelName>A-ob0-ch0</channelName>
+              <channelConvertedName>B-ib0-ch0</channelConvertedName>
+              <receiverName>Module B</receiverName>
+            </outputChannel>
+          </outputChannels>
+        </outputBatch>
+        <outputBatch>
+          <outputBatchType>Distributor</outputBatchType>
+          <collectorName>Module C</collectorName>
+          <outputChannels count="1">
+            <outputChannel>
+              <channelName>A-ob1-ch0</channelName>
+              <channelConvertedName>C-ib1-ch0</channelConvertedName>
+              <receiverName>Module C</receiverName>
+            </outputChannel>
+          </outputChannels>
+        </outputBatch>
+      </outputBatches>
+      <isStarting>yes</isStarting>
+      <isFinishing>yes</isFinishing>
+    </module>
+    <module>
+      <name>Module B</name>
+      <executionType>Internal</executionType>
+      <transportType>Pipe</transportType>
+      <executablePath>fullpath/to/wrapper_test_pingpong3_internal_child_B.exe</executablePath>
+      <startCommandLineArgs count="0">
+      </startCommandLineArgs>
+      <stopCommandLine></stopCommandLine>
+      <moduleParameters count="0">
+      </moduleParameters>
+      <environmentVariables count="0">
+      </environmentVariables>
+      <inputFileName>inputs</inputFileName>
+      <outputFileName>outputs</outputFileName>
+      <hasState>no</hasState>
+      <stateFileName>state</stateFileName>
+      <isTransferable>no</isTransferable>
+      <inputBatches count="1">
+        <inputBatch>
+          <inputBatchType>Regular</inputBatchType>
+          <distributorName></distributorName>
+          <sourceChannels count="0">
+          </sourceChannels>
+          <inputBatchChannels count="1">
+            <channelName>B-ib0-ch0</channelName>
+          </inputBatchChannels>
+        </inputBatch>
+      </inputBatches>
+      <outputBatches count="1">
+        <outputBatch>
+          <outputBatchType>Regular</outputBatchType>
+          <collectorName></collectorName>
+          <outputChannels count="1">
+            <outputChannel>
+              <channelName>B-ob0-ch0</channelName>
+              <channelConvertedName>C-ib0-ch0</channelConvertedName>
+              <receiverName>Module C</receiverName>
+            </outputChannel>
+          </outputChannels>
+        </outputBatch>
+      </outputBatches>
+      <isStarting>no</isStarting>
+      <isFinishing>no</isFinishing>
+    </module>
+    <module>
+      <name>Module C</name>
+      <executionType>Internal</executionType>
+      <transportType>Pipe</transportType>
+      <executablePath>fullpath/to/wrapper_test_pingpong3_internal_child_C.exe</executablePath>
+      <startCommandLineArgs count="0">
+      </startCommandLineArgs>
+      <stopCommandLine></stopCommandLine>
+      <moduleParameters count="0">
+      </moduleParameters>
+      <environmentVariables count="0">
+      </environmentVariables>
+      <inputFileName>inputs</inputFileName>
+      <outputFileName>outputs</outputFileName>
+      <hasState>no</hasState>
+      <stateFileName>state</stateFileName>
+      <isTransferable>no</isTransferable>
+      <inputBatches count="2">
+        <inputBatch>
+          <inputBatchType>Collector</inputBatchType>
+          <distributorName>Module A</distributorName>
+          <sourceChannels count="1">
+            <channelName>A-ob0-ch0</channelName>
+          </sourceChannels>
+          <inputBatchChannels count="1">
+            <channelName>C-ib0-ch0</channelName>
+          </inputBatchChannels>
+        </inputBatch>
+        <inputBatch>
+          <inputBatchType>Collector</inputBatchType>
+          <distributorName>Module A</distributorName>
+          <sourceChannels count="1">
+            <channelName>A-ob1-ch0</channelName>
+          </sourceChannels>
+          <inputBatchChannels count="1">
+            <channelName>C-ib1-ch0</channelName>
+          </inputBatchChannels>
+        </inputBatch>
+      </inputBatches>
+      <outputBatches count="1">
+        <outputBatch>
+          <outputBatchType>Regular</outputBatchType>
+          <collectorName></collectorName>
+          <outputChannels count="1">
+            <outputChannel>
+              <channelName>C-ob0-ch0</channelName>
+              <channelConvertedName>A-ib0-ch0</channelConvertedName>
+              <receiverName>Module A</receiverName>
+            </outputChannel>
+          </outputChannels>
+        </outputBatch>
+      </outputBatches>
+      <isStarting>no</isStarting>
+      <isFinishing>no</isFinishing>
+    </module>
+  </modules>
+</workflow>

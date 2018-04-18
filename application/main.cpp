@@ -59,6 +59,8 @@ public:
   virtual ~TWrapperParser() = 0;
   virtual std::vector<TModuleInfo>
     Parse(const std::string& pathToWorkflowFile) = 0;
+  void TWrapperParser::CheckCorrectnessModuleInfos(
+    const std::vector<TModuleInfo>& modules);
 };
 
 struct TTagHandlers
@@ -346,8 +348,6 @@ private:
   void FillModules(const TXMLWorkflowTree* XMLTree,
     std::vector<TModuleInfo>& modules);
 
-  void CheckCorrectnessModuleInfos(const std::vector<TModuleInfo>& modules);
-
   void CheckFindResult(const TXMLTagInfo* checkingTag,
     TXMLTagInfo::ETagType::Type searchTagType,
     TXMLTagInfo::ETagType::Type parentTagType);
@@ -374,6 +374,7 @@ int main(int argc, char* argv[])
     "D:/git-projects/libexpat-example-build/bin/pingpong3_internal_windows_workflow.xml";
   TWrapperParser* parser = TWrapperParserFactory::CreateInstance("XML");
   std::vector<TModuleInfo> modules = parser->Parse(pathToWorkflowFile);
+  parser->CheckCorrectnessModuleInfos(modules);
 
   return 0;
 }
@@ -1165,7 +1166,7 @@ void TWrapperXMLParser::FillModules(const TXMLWorkflowTree* XMLTree,
   }
 }
 
-void TWrapperXMLParser::CheckCorrectnessModuleInfos(
+void TWrapperParser::CheckCorrectnessModuleInfos(
   const std::vector<TModuleInfo>& modules)
 {
   /* Checking mix of execution and transport types for each module */
@@ -1236,7 +1237,7 @@ void TWrapperXMLParser::CheckCorrectnessModuleInfos(
     }
   }
 
-  /* Must be at least module with starting state */
+  /* Must be at least one module with starting state */
   bool startingModuleFounded = false;
   for (std::size_t i = 0; i < modules.size(); ++i)
   {
@@ -1253,7 +1254,7 @@ void TWrapperXMLParser::CheckCorrectnessModuleInfos(
     throw std::runtime_error(info.str());
   }
 
-  /* Must be at least module with finishing state */
+  /* Must be at least one module with finishing state */
   bool finishingModuleFounded = false;
   for (std::size_t i = 0; i < modules.size(); ++i)
   {
@@ -1270,7 +1271,188 @@ void TWrapperXMLParser::CheckCorrectnessModuleInfos(
     throw std::runtime_error(info.str());
   }
 
-  // TODO: checking channels
+  ///* Must be at least one input batch in each module */
+  //bool isCorrect = true;
+  //int pos;
+  //for (std::size_t i = 0; i < modules.size(); ++i)
+  //{
+  //  if (modules[i].inputBatches.size() == 0)
+  //  {
+  //    isCorrect = false;
+  //    pos = i;
+  //    break;
+  //  }
+  //}
+  //if (!isCorrect)
+  //{
+  //  std::stringstream info;
+  //  info << "Must be at least one input batch in module with '" <<
+  //    modules[pos].name << "' name.";
+  //  throw std::runtime_error(info.str());
+  //}
+
+  ///* Must be at least one output batch in each module */
+  //bool isCorrect = true;
+  //int pos;
+  //for (std::size_t i = 0; i < modules.size(); ++i)
+  //{
+  //  if (modules[i].outputBatches.size() == 0)
+  //  {
+  //    isCorrect = false;
+  //    pos = i;
+  //    break;
+  //  }
+  //}
+  //if (!isCorrect)
+  //{
+  //  std::stringstream info;
+  //  info << "Must be at least one output batch in module with '" <<
+  //    modules[pos].name << "' name.";
+  //  throw std::runtime_error(info.str());
+  //}
+
+  /* Checking correctness of channels for each distribute and aggregator 
+   * batches in each module
+   */
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    for (std::size_t j = 0; j < modules[i].outputBatches.size(); ++j)
+    {
+      const TOutputBatchInfo& outputBatch = modules[i].outputBatches[j];
+
+      if (outputBatch.type == EOutputBatchType::Distributor)
+      {
+        /* Find collector module and check channels
+         * (outputChannelName == sourceChannel in input batch)
+         */
+        TModuleId collectorId = outputBatch.receiver;
+        TModuleInfo collectorModule;
+        bool collectorModuleFound = false;
+        for (std::size_t k = 0; k < modules.size(); ++k)
+        {
+          if (modules[k].id == collectorId)
+          {
+            collectorModule = modules[k];
+            collectorModuleFound = true;
+            break;
+          }
+        }
+        if (!collectorModuleFound)
+        {
+          std::stringstream info;
+          info << "Collector module with '" << collectorId.workflowId << "'" <<
+            " workflow id was not found for output batch of module with '" <<
+            modules[i].name << "' name.";
+          throw std::runtime_error(info.str());
+        }
+        bool channelsIsCorrect = false;
+        for (std::size_t k = 0; k < collectorModule.inputBatches.size(); ++k)
+        {
+          const TInputBatchInfo& inputBatch = collectorModule.inputBatches[k];
+          if ((inputBatch.type == EInputBatchType::Collector) &&
+            (inputBatch.sourceChannels.size() == outputBatch.channels.size()))
+          {
+            /* Checking channels */
+            std::size_t l;
+            for (l = 0; l < outputBatch.channels.size(); ++l)
+            {
+              const TOutputBatchInfo::TOutputMessageChannelInfo& channelInfo =
+                outputBatch.channels[l];
+              bool sourceChannelFound = false;
+              for (std::size_t s = 0; s < inputBatch.sourceChannels.size(); ++s)
+              {
+                const std::string& sourceChannel =
+                  inputBatch.sourceChannels[s];
+                if (channelInfo.name == sourceChannel)
+                {
+                  sourceChannelFound = true;
+                  break;
+                }
+              }
+              if (!sourceChannelFound)
+              {
+                break;
+              }
+            }
+            if (l == outputBatch.channels.size())
+            {
+              channelsIsCorrect = true;
+              break;
+            }
+          }
+        }
+        if (!channelsIsCorrect)
+        {
+          std::stringstream info;
+          info << "Collector module with '" << collectorId.workflowId << "'" <<
+            " workflow id was not found for output batch of module with '" <<
+            modules[i].name << "' name.";
+          throw std::runtime_error(info.str());
+        }
+      }
+    }
+  }
+
+  /* Checking correctness of channels for each regular batch in each module */
+  for (std::size_t i = 0; i < modules.size(); ++i)
+  {
+    for (std::size_t j = 0; j < modules[i].outputBatches.size(); ++j)
+    {
+      const TOutputBatchInfo& outputBatch = modules[i].outputBatches[j];
+      for (std::size_t k = 0; k < outputBatch.channels.size(); ++k)
+      {
+        const TOutputBatchInfo::TOutputMessageChannelInfo& outputChannelInfo =
+          outputBatch.channels[k];
+        /* Find receiver module and check channels
+         * (channelConvertedName == channelName in input batch)
+         */
+        TModuleId receiverId = outputChannelInfo.receiver;
+        TModuleInfo receiverModule;
+        bool receiverModuleFound = false;
+        for (std::size_t l = 0; l < modules.size(); ++l)
+        {
+          if (modules[l].id == receiverId)
+          {
+            receiverModule = modules[l];
+            receiverModuleFound = true;
+            break;
+          }
+        }
+        if (!receiverModuleFound)
+        {
+          std::stringstream info;
+          info << "Receiver module with '" << receiverId.workflowId << "'" <<
+            " workflow id was not found for output batch of module with '" <<
+            modules[i].name << "' name.";
+          throw std::runtime_error(info.str());
+        }
+        bool channelFound = false;
+        for (std::size_t l = 0; l < receiverModule.inputBatches.size(); ++l)
+        {
+          const TInputBatchInfo& inputBatch = receiverModule.inputBatches[l];
+          for (std::size_t s = 0; s < inputBatch.channels.size(); ++s)
+          {
+            const std::string& channelName = inputBatch.channels[s];
+            if (outputChannelInfo.convertedName == channelName)
+            {
+              channelFound = true;
+              break;
+            }
+          }
+        }
+        if (!channelFound)
+        {
+          std::stringstream info;
+          info << "Converted channel name with '" <<
+            outputChannelInfo.convertedName <<
+            "' name in output batch of '" << modules[i].name << "' module " <<
+            " was not found among channels of input batches of '" <<
+            receiverModule.name << "' module.";
+          throw std::runtime_error(info.str());
+        }
+      }
+    }
+  }
 }
 
 void TWrapperXMLParser::CheckFindResult(const TXMLTagInfo* checkingTag,
